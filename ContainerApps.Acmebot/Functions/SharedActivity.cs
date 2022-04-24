@@ -444,8 +444,11 @@ public class SharedActivity : ISharedActivity
 
             recordSet.TxtRecords.Add(new TxtRecord { Value = { containerApp.Data.CustomDomainVerificationId } });
 
+            // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
+            var varificationDnsName = $"asuid.{dnsName.Replace("*.", "")}";
+
             // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
-            var relativeDnsName = $"asuid.{dnsName}".Replace($".{zone.Name}", "", StringComparison.OrdinalIgnoreCase);
+            var relativeDnsName = varificationDnsName.Replace($".{zone.Name}", "", StringComparison.OrdinalIgnoreCase);
 
             await _dnsManagementClient.RecordSets.CreateOrUpdateAsync(resourceGroup, zone.Name, relativeDnsName, RecordType.TXT, recordSet);
         }
