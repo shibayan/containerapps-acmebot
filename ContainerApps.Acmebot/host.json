@@ -1,0 +1,27 @@
+{
+  "version": "2.0",
+  "logging": {
+    "applicationInsights": {
+      "samplingSettings": {
+        "isEnabled": true,
+        "excludedTypes": "Request"
+      }
+    },
+    "logLevel": {
+      "ContainerApps.Acmebot": "Information"
+    }
+  },
+  "extensions": {
+    "durableTask": {
+      "hubName": "DurableFunctionsHub",
+      "extendedSessionsEnabled": true,
+      "extendedSessionIdleTimeoutInSeconds": 120
+    },
+    "http": {
+      "routePrefix": "",
+      "customHeaders": {
+        "Cache-Control": "no-store"
+      }
+    }
+  }
+}

@@ -1,0 +1,278 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Container Apps Acmebot</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.9.3/css/bulma.min.css" integrity="sha512-IgmDkwzs96t4SrChW29No3NXBIBv8baW490zk5aXvhCD8vuZM3yUSkbyTBcXohkySecyzIrUwiF/qV0cuPcL3Q==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/js/all.min.js" integrity="sha512-Tn2m0TIpgVyTzzvmxLNuqbSJH3JP8jm+Cy3hvHrW7ndTDcJ1w5mBiksqDBb8GpE2ksktFvDB/ykZ0mDpsZj20w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <section class="section">
+    <div class="container">
+      <h1 class="title">
+        Add Certificate
+      </h1>
+      <div id="app">
+        <div class="field is-horizontal">
+          <div class="field-label is-normal">
+            <label class="label">DNS Zone</label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <div class="select" :class="{ 'is-loading': loading }">
+                  <select v-model="zoneName">
+                    <option disabled value="">Please select one</option>
+                    <option v-for="zone in zones" :value="zone">{{ toUnicode(zone) }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field is-horizontal">
+          <div class="field-label is-normal">
+            <label class="label">DNS Names</label>
+          </div>
+          <div class="field-body">
+            <div class="field has-addons">
+              <p class="control">
+                <input v-model="recordName" class="input" type="text" placeholder="Record name" :disabled="zoneName.length === 0">
+              </p>
+              <p class="control">
+                <a class="button is-static">
+                  .{{ toUnicode(zoneName) }}
+                </a>
+              </p>
+              <p class="control">
+                <button class="button is-info" @click="add" :disabled="zoneName.length === 0">Add</button>
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="field is-horizontal">
+          <div class="field-label"></div>
+          <div class="field-body">
+            <div class="content">
+              <div class="tags">
+                <span v-for="dnsName in dnsNames" class="tag is-light is-medium">
+                  {{ toUnicode(dnsName) }}
+                  <button class="delete is-small" @click="remove(dnsName)"></button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field is-horizontal">
+          <div class="field-label is-normal">
+            <label class="label">Container App Environment</label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <div class="select" :class="{ 'is-loading': loading }">
+                  <select v-model="environmentId">
+                    <option disabled value="">Please select one</option>
+                    <option v-for="environment in environments" :value="environment.id">{{ environment.name }} ({{ environment.resourceGroup }})</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field is-horizontal">
+          <div class="field-label">
+            <label class="label">Bind to Container App</label>
+          </div>
+          <div class="field-body">
+            <div class="field is-narrow">
+              <div class="control">
+                <label class="radio">
+                  <input type="radio" v-model="bindToContainerApp" v-bind:value="true">
+                  Yes
+                </label>
+                <label class="radio">
+                  <input type="radio" v-model="bindToContainerApp" v-bind:value="false">
+                  No
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="bindToContainerApp" class="field is-horizontal">
+          <div class="field-label is-normal">
+            <label class="label">Container App</label>
+          </div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <div class="select" :class="{ 'is-loading': appsLoading }">
+                  <select v-model="appId">
+                    <option disabled value="">Please select one</option>
+                    <option v-for="app in apps" :value="app.id">{{ app.name }}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="field is-horizontal">
+          <div class="field-label"></div>
+          <div class="field-body">
+            <div class="field">
+              <div class="control">
+                <button class="button is-primary" @click="submit" :class="{ 'is-loading': sending }" :disabled="dnsNames.length === 0">Submit</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.11/vue.global.prod.min.js" integrity="sha512-RiF+Jrmab5nvkymjQZrHxYRi83mZj3cblSwolvamR1phU+rN9gUBPGEU7P+tvaKncRSk8dXvJhyhKb0BpYgj9A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.4/axios.min.js" integrity="sha512-lTLt+W7MrmDfKam+r3D2LURu0F47a3QaW5nF0c6Hl0JDZ57ruei+ovbg7BrZ+0bjVJ5YgzsAWE+RreERbpPE1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/punycode/1.4.1/punycode.min.js" integrity="sha512-YZlXEJ9dOHnIn3LXSS3RpbhAtTQZWw2VOywaMsC8p7/0DyGu0gEf0pFhkQtE/i4pQpgGUDY7cicb401Tf/5sRA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script>
+    const delay = (millisecondsDelay) => {
+      return new Promise(resolve => setTimeout(() => resolve(), millisecondsDelay));
+    }
+
+    const app = {
+      data() {
+        return {
+          zones: [],
+          zoneName: "",
+          dnsNames: [],
+          recordName: "",
+          environments: [],
+          apps: [],
+          environmentId: '',
+          bindToContainerApp: false,
+          appId: '',
+          loading: false,
+          appsLoading: false,
+          sending: false
+        };
+      },
+      watch: {
+        async environmentId(newValue, _) {
+          if (!newValue) {
+            return;
+          }
+
+          this.appsLoading = true;
+
+          try {
+            const response = await axios.get(`/api/apps?id=${newValue}`);
+
+            this.apps = response.data;
+            this.appId = '';
+          } catch (error) {
+            alert(error.response.data.output);
+          }
+
+          this.appsLoading = false;
+        }
+      },
+      methods: {
+        async load() {
+          this.loading = true;
+
+          try {
+            const response = await axios.get("/api/zones");
+
+            this.zones = response.data;
+          } catch (error) {
+            alert(error.response.data.output);
+          }
+
+          try {
+            const response = await axios.get("/api/environments");
+
+            this.environments = response.data;
+          } catch (error) {
+            alert(error.response.data.output);
+          }
+
+          this.loading = false;
+        },
+        reset() {
+          this.apps = [];
+          this.environmentId = '';
+          this.dnsNames = [];
+          this.bindToContainerApp = false;
+          this.appId = '';
+        },
+        add() {
+          if (this.zoneName === "") {
+            return;
+          }
+
+          const dnsName = this.recordName === "" ? this.zoneName : punycode.toASCII(this.recordName) + "." + this.zoneName;
+
+          if (this.dnsNames.indexOf(dnsName) === -1) {
+            this.dnsNames.push(dnsName);
+          }
+
+          this.recordName = "";
+        },
+        remove(dnsName) {
+          this.dnsNames = this.dnsNames.filter(x => x !== dnsName);
+        },
+        async submit() {
+          this.sending = true;
+
+          const postData = {
+            dnsNames: this.dnsNames,
+            managedEnvironmentId: this.environmentId,
+            bindToContainerApp: this.bindToContainerApp,
+            containerAppId: this.appId
+          };
+
+          try {
+            let response = await axios.post("/api/certificate", postData);
+
+            while (true) {
+              await delay(5000);
+
+              response = await axios.get(response.headers["location"]);
+
+              if (response.status === 200) {
+                alert("The certificate was successfully issued.");
+                break;
+              }
+            }
+          }
+          catch (error) {
+            const problem = error.response.data;
+
+            if (error.response.status === 400) {
+              const errors = [];
+
+              for (let key in problem.errors) {
+                errors.push(problem.errors[key][0]);
+              }
+
+              alert(errors.join("\n"));
+            } else {
+              alert(problem.detail);
+            }
+          }
+
+          this.reset();
+          this.sending = false;
+        },
+        toUnicode(value) {
+          return punycode.toUnicode(value);
+        }
+      },
+      beforeMount() {
+        this.load();
+      }
+    };
+
+    Vue.createApp(app).mount("#app");
+  </script>
+</body>
+</html>

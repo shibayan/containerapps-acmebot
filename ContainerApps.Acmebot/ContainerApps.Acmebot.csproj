@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.6.0" />
+    <PackageReference Include="Azure.ResourceManager.Dns" Version="1.0.0-preview.1" />
+    <PackageReference Include="DnsClient" Version="1.6.0" />
+    <PackageReference Include="DurableTask.TypedProxy" Version="2.2.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
+    <PackageReference Include="Microsoft.Azure.WebJobs.Extensions.DurableTask" Version="2.6.1" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="6.0.0" />
+    <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="4.1.0" />
+    <PackageReference Include="WebJobs.Extensions.HttpApi" Version="2.0.3" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\ACMESharpCore\src\ACMESharp.DotNetCore\ACMESharp.DotNetCore.csproj" />
+    <ProjectReference Include="..\ACMESharpCore\src\ACMESharp\ACMESharp.csproj" />
+    <ProjectReference Include="..\Azure.ResourceManager.App\Azure.ResourceManager.App.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="host.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="local.settings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
+    </None>
+    <None Update="wwwroot\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <Target Name="DeleteFiles" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)System.Reactive.xml" />
+  </Target>
+</Project>
