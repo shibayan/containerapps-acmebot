@@ -20,7 +20,6 @@ You can add multiple certificates to a single Container Apps.
 - [Requirements](#requirements)
 - [Getting Started](#getting-started)
 - [Usage](#usage)
-- [Troubleshooting](#troubleshooting)
 - [Thanks](#thanks)
 - [License](#license)
 
@@ -107,12 +106,13 @@ Content-Type: application/json
 x-functions-key: asd+YourFunctionKeyHere+fgh==
 
 {
-  "managedEnvironmentName": "your-container-apps-env-name",
-  "containerAppName": "your-container-apps-name",
   "dnsNames": [
     "example.com",
     "www.example.com"
-  ]
+  ],
+  "managedEnvironmentId": "container-apps-environment-resource-id",
+  "bindToContainerApp": true,
+  "containerAppId": "container-app-resource-id"
 }
 ```
 
@@ -128,6 +128,7 @@ The application is automatically updated so that you are always up to date with 
 
 ## Thanks
 
+- Based on [containerapps-acmebot](https://github.com/jeffhollan/containerapps-acmebot) by @jeffhollan
 - [ACMESharp Core](https://github.com/PKISharp/ACMESharpCore) by @ebekker
 - [Durable Functions](https://github.com/Azure/azure-functions-durable-extension) by @cgillum and contributors
 - [DnsClient.NET](https://github.com/MichaCo/DnsClient.NET) by @MichaCo
