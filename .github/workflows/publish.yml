@@ -10,6 +10,8 @@ env:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.setup_version.outputs.version }}
     steps:
     - uses: actions/checkout@v2
       with:
@@ -22,10 +24,10 @@ jobs:
 
     - name: Setup Version
       id: setup_version
-      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\/v/}
+      run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\/v/}
 
     - name: Publish Function app
-      run: dotnet publish -c Release -r win-x86 --self-contained false -o ./dist -p:Version=${{ steps.setup_version.outputs.VERSION }} ContainerApps.Acmebot
+      run: dotnet publish -c Release -r win-x86 --self-contained false -o ./dist -p:Version=${{ steps.setup_version.outputs.version }} ContainerApps.Acmebot
 
     - name: Zip Function app
       run: 7z a -mx=9 latest.zip ./dist/*
@@ -33,10 +35,10 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: latest
+        name: dist
         path: ./latest.zip
 
-  upload:
+  deploy:
     environment: production
     needs: publish
     permissions:
@@ -54,9 +56,9 @@ jobs:
     - name: Download artifact
       uses: actions/download-artifact@v3
       with:
-        name: latest
+        name: dist
 
     - name: Upload to Blob
       run: |
         az storage blob upload --auth-mode login -f latest.zip --account-name stacmebotprod -c containerapps-acmebot -n v1/latest.zip --overwrite
-        az storage blob upload --auth-mode login -f latest.zip --account-name stacmebotprod -c containerapps-acmebot -n v1/${{ steps.setup_version.outputs.VERSION }}.zip --overwrite
+        az storage blob upload --auth-mode login -f latest.zip --account-name stacmebotprod -c containerapps-acmebot -n v1/${{ needs.publish.outputs.version }}.zip --overwrite
