@@ -6,6 +6,7 @@ on:
 
 env:
   DOTNET_VERSION: 6.0.x
+  BICEP_VERSION: 0.5.6
 
 jobs:
   publish:
@@ -36,7 +37,9 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: dist
-        path: ./latest.zip
+        path: |
+          latest.zip
+          azuredeploy.bicep
 
   deploy:
     environment: production
@@ -53,6 +56,9 @@ jobs:
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+    - name: Use Bicep ${{ env.BICEP_VERSION }}
+      run: az bicep install --version v${{ env.BICEP_VERSION }}
+
     - name: Download artifact
       uses: actions/download-artifact@v3
       with:
@@ -62,3 +68,8 @@ jobs:
       run: |
         az storage blob upload --auth-mode login -f latest.zip --account-name stacmebotprod -c containerapps-acmebot -n v1/latest.zip --overwrite
         az storage blob upload --auth-mode login -f latest.zip --account-name stacmebotprod -c containerapps-acmebot -n v1/${{ needs.publish.outputs.version }}.zip --overwrite
+
+    - name: Publish to Private Registry
+      run: |
+        az bicep publish --file azuredeploy.bicep --target br:cracmebotprod.azurecr.io/bicep/modules/containerapps-acmebot:v1
+        az bicep publish --file azuredeploy.bicep --target br:cracmebotprod.azurecr.io/bicep/modules/containerapps-acmebot:v${{ needs.publish.outputs.version }}
