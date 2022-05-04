@@ -119,9 +119,9 @@ public class AcmeProtocolClientFactory
         return JwsHelper.SignFlatJsonAsObject(HmacSignature, payload, protectedHeaders);
     }
 
-    private static TState LoadState<TState>(string path)
+    private TState LoadState<TState>(string path)
     {
-        var fullPath = Environment.ExpandEnvironmentVariables(@"%HOME%\.acme\" + path);
+        var fullPath = ResolveStateFullPath(path);
 
         if (!File.Exists(fullPath))
         {
@@ -133,9 +133,9 @@ public class AcmeProtocolClientFactory
         return JsonConvert.DeserializeObject<TState>(json);
     }
 
-    private static void SaveState<TState>(TState value, string path)
+    private void SaveState<TState>(TState value, string path)
     {
-        var fullPath = Environment.ExpandEnvironmentVariables(@"%HOME%\.acme\" + path);
+        var fullPath = ResolveStateFullPath(path);
         var directoryPath = Path.GetDirectoryName(fullPath);
 
         if (!Directory.Exists(directoryPath))
@@ -147,4 +147,6 @@ public class AcmeProtocolClientFactory
 
         File.WriteAllText(fullPath, json);
     }
+
+    private string ResolveStateFullPath(string path) => Environment.ExpandEnvironmentVariables($"%HOME%/data/.acmebot/{_baseUri.Host}/{path}");
 }
