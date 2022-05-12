@@ -25,10 +25,8 @@ You can add multiple certificates to a single Container Apps.
 
 ## Feature Support
 
-- Azure Container Apps (requires Azure DNS)
-- Issuing certificates for Zone Apex Domains
-- Issuing certificates with SANs (subject alternative names) (one certificate for multiple domains)
-- Wildcard certificate (requires Azure DNS)
+- Issuing certificates for Zone Apex / Multi-domain / Wildcard
+- Automatic binding of custom domains and certificates to Container App
 - Support for multiple Container Apps in a single application
 - ACME-compliant Certification Authorities
   - [Let's Encrypt](https://letsencrypt.org/)
@@ -38,7 +36,8 @@ You can add multiple certificates to a single Container Apps.
 ## Requirements
 
 - Azure Subscription
-- Azure Container Apps and Azure DNS
+- Azure Container Apps
+- Azure DNS
 - Email address (required to register with Let's Encrypt)
 
 ## Getting Started
@@ -84,6 +83,10 @@ Finally, you can save your previous settings to enable App Service authenticatio
 ### 4. Add access control (IAM) to the target resource group
 
 Open the `Access control (IAM)` of the target resource group and assign the roles `Contributor` to the deployed Container Apps and Azure DNS zones.
+
+![RBAC setting](https://user-images.githubusercontent.com/1356444/168016032-cedf8872-9fcd-418f-a704-7d6f1255a712.png)
+
+Assign the `DNS Zone Contributor` role to the deployed Acmebot if Azure DNS resides in a separate resource group.
 
 ## Usage
 
