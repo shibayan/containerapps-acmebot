@@ -50,7 +50,7 @@ public class WebhookInvoker
                         {
                             new
                             {
-                                title = "Container App Environment Name",
+                                title = "Container Apps Environment Name",
                                 value= managedEnvironmentName,
                                 @short = true
                             },
@@ -74,7 +74,7 @@ public class WebhookInvoker
             model = new
             {
                 title = "Acmebot",
-                text = $"A new certificate has been issued.\n\n**Container App Environment Name**: {managedEnvironmentName}\n\n**Expiration Date**: {expirationDate}\n\n**DNS Names**: {string.Join(", ", dnsNames)}",
+                text = $"A new certificate has been issued.\n\n**Container Apps Environment Name**: {managedEnvironmentName}\n\n**Expiration Date**: {expirationDate}\n\n**DNS Names**: {string.Join(", ", dnsNames)}",
                 themeColor = "2EB886"
             };
         }

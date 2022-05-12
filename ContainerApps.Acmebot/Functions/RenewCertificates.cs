@@ -22,7 +22,7 @@ public class RenewCertificates
 
         await context.CreateTimer(context.CurrentUtcDateTime.AddSeconds(jitter), CancellationToken.None);
 
-        // Container App Environment 単位で証明書の更新を行う
+        // Container Apps Environment 単位で証明書の更新を行う
         var managedEnvironments = await activity.GetManagedEnvironments();
 
         foreach (var managedEnvironment in managedEnvironments)
