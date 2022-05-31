@@ -39,7 +39,7 @@ public class GetEnvironments : HttpFunctionBase
             {
                 Id = x.Id,
                 Name = x.Name,
-                ResourceGroup = x.GetResourceGroup()
+                ResourceGroup = x.Id.ResourceGroupName
             }).ToArray();
         }
         catch
