@@ -13,11 +13,10 @@ using ACMESharp.Protocol.Resources;
 using Azure;
 using Azure.Core;
 using Azure.ResourceManager;
-using Azure.ResourceManager.Dns;
-using Azure.ResourceManager.Dns.Models;
-
 using Azure.ResourceManager.Applications.Containers;
 using Azure.ResourceManager.Applications.Containers.Models;
+using Azure.ResourceManager.Dns;
+using Azure.ResourceManager.Dns.Models;
 
 using ContainerApps.Acmebot.Internal;
 using ContainerApps.Acmebot.Models;
