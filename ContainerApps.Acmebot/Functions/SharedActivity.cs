@@ -36,13 +36,12 @@ namespace ContainerApps.Acmebot.Functions;
 public class SharedActivity : ISharedActivity
 {
     public SharedActivity(AcmeProtocolClientFactory acmeProtocolClientFactory, LookupClient lookupClient,
-                          ArmClient armClient, DnsManagementClient dnsManagementClient, WebhookInvoker webhookInvoker,
+                          ArmClient armClient, WebhookInvoker webhookInvoker,
                           IOptions<AcmebotOptions> options, ILogger<SharedActivity> logger)
     {
         _acmeProtocolClientFactory = acmeProtocolClientFactory;
         _lookupClient = lookupClient;
         _armClient = armClient;
-        _dnsManagementClient = dnsManagementClient;
         _webhookInvoker = webhookInvoker;
         _options = options.Value;
         _logger = logger;
@@ -51,7 +50,6 @@ public class SharedActivity : ISharedActivity
     private readonly AcmeProtocolClientFactory _acmeProtocolClientFactory;
     private readonly LookupClient _lookupClient;
     private readonly ArmClient _armClient;
-    private readonly DnsManagementClient _dnsManagementClient;
     private readonly WebhookInvoker _webhookInvoker;
     private readonly AcmebotOptions _options;
     private readonly ILogger<SharedActivity> _logger;
@@ -95,9 +93,11 @@ public class SharedActivity : ISharedActivity
     {
         try
         {
-            var zones = await _dnsManagementClient.Zones.ListAllAsync();
+            var subscription = await _armClient.GetDefaultSubscriptionAsync();
 
-            return zones.Select(x => x.Name).ToArray();
+            var zones = await subscription.ListAllDnsZonesAsync();
+
+            return zones.Select(x => x.Data.Name).ToArray();
         }
         catch
         {
@@ -117,24 +117,26 @@ public class SharedActivity : ISharedActivity
     public async Task Dns01Precondition([ActivityTrigger] IReadOnlyList<string> dnsNames)
     {
         // Azure DNS が存在するか確認
-        var zones = await _dnsManagementClient.Zones.ListAllAsync();
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
 
-        var foundZones = new HashSet<Zone>();
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
+
+        var foundDnsZones = new HashSet<DnsZoneData>();
         var zoneNotFoundDnsNames = new List<string>();
 
         foreach (var dnsName in dnsNames)
         {
-            var zone = zones.Where(x => string.Equals(dnsName, x.Name, StringComparison.OrdinalIgnoreCase) || dnsName.EndsWith($".{x.Name}", StringComparison.OrdinalIgnoreCase))
-                            .MaxBy(x => x.Name.Length);
+            var dnsZone = dnsZones.Where(x => string.Equals(dnsName, x.Data.Name, StringComparison.OrdinalIgnoreCase) || dnsName.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                                  .MaxBy(x => x.Data.Name.Length);
 
             // マッチする DNS zone が見つからない場合はエラー
-            if (zone == null)
+            if (dnsZone == null)
             {
                 zoneNotFoundDnsNames.Add(dnsName);
                 continue;
             }
 
-            foundZones.Add(zone);
+            foundDnsZones.Add(dnsZone.Data);
         }
 
         if (zoneNotFoundDnsNames.Count > 0)
@@ -143,7 +145,7 @@ public class SharedActivity : ISharedActivity
         }
 
         // DNS zone に移譲されている Name servers が正しいか検証
-        foreach (var zone in foundZones)
+        foreach (var zone in foundDnsZones)
         {
             // DNS provider が Name servers を返していなければスキップ
             if (zone.NameServers == null || zone.NameServers.Count == 0)
@@ -204,33 +206,33 @@ public class SharedActivity : ISharedActivity
         }
 
         // Azure DNS zone の一覧を取得する
-        var zones = await _dnsManagementClient.Zones.ListAllAsync();
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
 
         // DNS-01 の検証レコード名毎に Azure DNS に TXT レコードを作成
         foreach (var lookup in challengeResults.ToLookup(x => x.DnsRecordName))
         {
             var dnsRecordName = lookup.Key;
 
-            var zone = zones.Where(x => dnsRecordName.EndsWith($".{x.Name}", StringComparison.OrdinalIgnoreCase))
-                            .MaxBy(x => x.Name.Length);
-
-            var resourceGroup = ExtractResourceGroup(zone.Id);
+            var dnsZone = dnsZones.Where(x => dnsRecordName.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                                  .MaxBy(x => x.Data.Name.Length);
 
             // Challenge の詳細から Azure DNS 向けにレコード名を作成
-            var acmeDnsRecordName = dnsRecordName.Replace($".{zone.Name}", "", StringComparison.OrdinalIgnoreCase);
+            var acmeDnsRecordName = dnsRecordName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
             // 既存の TXT レコードがあれば取得する
-            var recordSet = await _dnsManagementClient.RecordSets.GetOrDefaultAsync(resourceGroup, zone.Name, acmeDnsRecordName, RecordType.TXT) ?? new RecordSet();
+            RecordSetTxtResource recordSet = await dnsZone.GetRecordSetTxtAsync(acmeDnsRecordName);
 
             // TXT レコードに TTL と値をセットする
-            recordSet.TTL = 60;
+            recordSet.Data.TTL = 60;
 
             foreach (var value in lookup)
             {
-                recordSet.TxtRecords.Add(new TxtRecord { Value = { value.DnsRecordValue } });
+                recordSet.Data.TxtRecords.Add(new TxtRecord { Value = { value.DnsRecordValue } });
             }
 
-            await _dnsManagementClient.RecordSets.CreateOrUpdateAsync(resourceGroup, zone.Name, acmeDnsRecordName, RecordType.TXT, recordSet);
+            await recordSet.UpdateAsync(recordSet.Data);
         }
 
         return challengeResults;
@@ -417,23 +419,25 @@ public class SharedActivity : ISharedActivity
     public async Task CleanupDnsChallenge([ActivityTrigger] IReadOnlyList<AcmeChallengeResult> challengeResults)
     {
         // Azure DNS zone の一覧を取得する
-        var zones = await _dnsManagementClient.Zones.ListAllAsync();
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
 
         // DNS-01 の検証レコード名毎に Azure DNS から TXT レコードを削除
         foreach (var lookup in challengeResults.ToLookup(x => x.DnsRecordName))
         {
             var dnsRecordName = lookup.Key;
 
-            var zone = zones.Where(x => dnsRecordName.EndsWith($".{x.Name}", StringComparison.OrdinalIgnoreCase))
-                            .OrderByDescending(x => x.Name.Length)
-                            .First();
-
-            var resourceGroup = ExtractResourceGroup(zone.Id);
+            var dnsZone = dnsZones.Where(x => dnsRecordName.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                                  .OrderByDescending(x => x.Data.Name.Length)
+                                  .First();
 
             // Challenge の詳細から Azure DNS 向けにレコード名を作成
-            var acmeDnsRecordName = dnsRecordName.Replace($".{zone.Name}", "", StringComparison.OrdinalIgnoreCase);
+            var acmeDnsRecordName = dnsRecordName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
-            await _dnsManagementClient.RecordSets.DeleteAsync(resourceGroup, zone.Name, acmeDnsRecordName, RecordType.TXT);
+            RecordSetTxtResource recordSet = await dnsZone.GetRecordSetTxtAsync(acmeDnsRecordName);
+
+            await recordSet.DeleteAsync(WaitUntil.Completed);
         }
     }
 
@@ -445,17 +449,17 @@ public class SharedActivity : ISharedActivity
         ContainerAppResource containerApp = await _armClient.GetContainerAppResource(new ResourceIdentifier(containerAppId)).GetAsync();
 
         // Azure DNS zone の一覧を取得する
-        var zones = await _dnsManagementClient.Zones.ListAllAsync();
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
 
         foreach (var dnsName in dnsNames)
         {
-            var zone = zones.Where(x => string.Equals(dnsName, x.Name, StringComparison.OrdinalIgnoreCase) || dnsName.EndsWith($".{x.Name}", StringComparison.OrdinalIgnoreCase))
-                            .MaxBy(x => x.Name.Length);
-
-            var resourceGroup = ExtractResourceGroup(zone.Id);
+            var dnsZone = dnsZones.Where(x => string.Equals(dnsName, x.Data.Name, StringComparison.OrdinalIgnoreCase) || dnsName.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                                  .MaxBy(x => x.Data.Name.Length);
 
             // Container Apps のカスタムドメイン所有チェック用 TXT レコードを作成
-            var recordSet = new RecordSet { TTL = 3600 };
+            var recordSet = new TxtRecordSetData { TTL = 3600 };
 
             recordSet.TxtRecords.Add(new TxtRecord { Value = { containerApp.Data.CustomDomainVerificationId } });
 
@@ -463,9 +467,11 @@ public class SharedActivity : ISharedActivity
             var varificationDnsName = $"asuid.{dnsName.Replace("*.", "")}";
 
             // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
-            var relativeDnsName = varificationDnsName.Replace($".{zone.Name}", "", StringComparison.OrdinalIgnoreCase);
+            var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
-            await _dnsManagementClient.RecordSets.CreateOrUpdateAsync(resourceGroup, zone.Name, relativeDnsName, RecordType.TXT, recordSet);
+            var recordSets = dnsZone.GetRecordSetTxts();
+
+            await recordSets.CreateOrUpdateAsync(WaitUntil.Completed, relativeDnsName, recordSet);
         }
     }
 
@@ -515,13 +521,6 @@ public class SharedActivity : ISharedActivity
         var managedEnvironmentName = ExtractResourceName(managedEnvironmentId);
 
         return _webhookInvoker.SendCompletedEventAsync(managedEnvironmentName, expirationDate, dnsNames);
-    }
-
-    private static string ExtractResourceGroup(string resourceId)
-    {
-        var values = resourceId.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-        return values[3];
     }
 
     private static string ExtractResourceName(string resourceId)
