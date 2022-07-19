@@ -9,8 +9,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ACMESharp", "ACMESharpCore\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ContainerApps.Acmebot", "ContainerApps.Acmebot\ContainerApps.Acmebot.csproj", "{999AD82C-CB3B-4CCA-B56F-AD27462785A5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Azure.ResourceManager.App", "Azure.ResourceManager.App\Azure.ResourceManager.App.csproj", "{8A435CDD-87D1-489F-823C-DDB2EF18F399}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,10 +27,6 @@ Global
 		{999AD82C-CB3B-4CCA-B56F-AD27462785A5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{999AD82C-CB3B-4CCA-B56F-AD27462785A5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{999AD82C-CB3B-4CCA-B56F-AD27462785A5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{8A435CDD-87D1-489F-823C-DDB2EF18F399}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{8A435CDD-87D1-489F-823C-DDB2EF18F399}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{8A435CDD-87D1-489F-823C-DDB2EF18F399}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{8A435CDD-87D1-489F-823C-DDB2EF18F399}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

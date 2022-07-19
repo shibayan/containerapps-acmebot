@@ -1,7 +1,7 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
 
-using Azure.ResourceManager.App.Models;
+using Azure.ResourceManager.Applications.Containers;
 using Azure.WebJobs.Extensions.HttpApi;
 
 using ContainerApps.Acmebot.Internal;
@@ -35,7 +35,7 @@ public class AddCertificate : HttpFunctionBase
         var asciiDnsNames = request.DnsNames.Select(Punycode.Encode).ToArray();
 
         // 証明書を発行し Azure にアップロード
-        var certificate = await context.CallSubOrchestratorAsync<CertificateResource>(nameof(SharedOrchestrator.IssueCertificate), (request.ManagedEnvironmentId, asciiDnsNames));
+        var certificate = await context.CallSubOrchestratorAsync<ContainerAppCertificateData>(nameof(SharedOrchestrator.IssueCertificate), (request.ManagedEnvironmentId, asciiDnsNames));
 
         // Container App と DNS にカスタムドメイン設定自体を追加する
         if (request.BindToContainerApp)
@@ -44,7 +44,7 @@ public class AddCertificate : HttpFunctionBase
         }
 
         // 証明書の更新が完了後に Webhook を送信する
-        await activity.SendCompletedEvent((request.ManagedEnvironmentId, certificate.Data.ExpirationDate.Value, asciiDnsNames));
+        await activity.SendCompletedEvent((request.ManagedEnvironmentId, certificate.Properties.ExpirationOn.Value, asciiDnsNames));
     }
 
     [FunctionName($"{nameof(AddCertificate)}_{nameof(HttpStart)}")]

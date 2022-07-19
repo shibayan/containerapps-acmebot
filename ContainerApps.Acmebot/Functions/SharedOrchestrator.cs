@@ -1,7 +1,7 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-using Azure.ResourceManager.App.Models;
+using Azure.ResourceManager.Applications.Containers;
 
 using DurableTask.TypedProxy;
 
@@ -13,7 +13,7 @@ namespace ContainerApps.Acmebot.Functions;
 public class SharedOrchestrator
 {
     [FunctionName(nameof(IssueCertificate))]
-    public async Task<CertificateResource> IssueCertificate([OrchestrationTrigger] IDurableOrchestrationContext context)
+    public async Task<ContainerAppCertificateData> IssueCertificate([OrchestrationTrigger] IDurableOrchestrationContext context)
     {
         var (managedEnvironmentId, dnsNames) = context.GetInput<(string, string[])>();
 

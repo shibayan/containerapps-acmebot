@@ -1,12 +1,12 @@
-﻿using Azure.ResourceManager.App.Models;
+﻿using Azure.ResourceManager.Applications.Containers;
 
 namespace ContainerApps.Acmebot.Internal;
 
 internal static class CertificateExtensions
 {
-    public static bool TagsFilter(this CertificateResource certificate, string issuer, string endpoint)
+    public static bool TagsFilter(this ContainerAppCertificateData containerAppCertificate, string issuer, string endpoint)
     {
-        var tags = certificate.Tags;
+        var tags = containerAppCertificate.Tags;
 
         if (tags is null)
         {
