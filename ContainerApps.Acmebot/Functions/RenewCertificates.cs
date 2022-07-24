@@ -47,13 +47,13 @@ public class RenewCertificates
                     // 証明書のリソースタグから SANs 情報を取得する
                     var dnsNames = certificate.Tags["DnsNames"].Split(',');
 
-                    log.LogInformation($"Renew certificate = {certificate.Name},{certificate.Properties.ExpirationOn},{string.Join(",", dnsNames)}");
+                    log.LogInformation($"Renew certificate = {certificate.Name},{certificate.ExpirationOn},{string.Join(",", dnsNames)}");
 
                     // 証明書の更新処理を開始
                     await context.CallSubOrchestratorWithRetryAsync(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, (managedEnvironment.Id, dnsNames));
 
                     // 証明書の更新が完了後に Webhook を送信する
-                    await activity.SendCompletedEvent((managedEnvironment.Id, certificate.Properties.ExpirationOn.Value, dnsNames));
+                    await activity.SendCompletedEvent((managedEnvironment.Id, certificate.ExpirationOn, dnsNames));
                 }
                 catch (Exception ex)
                 {

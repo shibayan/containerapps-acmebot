@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 
 using ACMESharp.Protocol;
 
-using Azure.ResourceManager.Applications.Containers;
-
 using ContainerApps.Acmebot.Models;
 
 using DurableTask.TypedProxy;
@@ -15,11 +13,11 @@ namespace ContainerApps.Acmebot.Functions;
 
 public interface ISharedActivity
 {
-    Task<IReadOnlyList<ManagedEnvironmentData>> GetManagedEnvironments(object input = null);
+    Task<IReadOnlyList<ManagedEnvironmentItem>> GetManagedEnvironments(object input = null);
 
-    Task<IReadOnlyList<ContainerAppData>> GetContainerApps(string managedEnvironmentId);
+    Task<IReadOnlyList<ContainerAppItem>> GetContainerApps(string managedEnvironmentId);
 
-    Task<IReadOnlyList<ContainerAppCertificateData>> GetExpiringCertificates((string, DateTime) input);
+    Task<IReadOnlyList<ContainerAppCertificateItem>> GetExpiringCertificates((string, DateTime) input);
 
     Task<IReadOnlyList<string>> GetZones(object input = null);
 
@@ -42,7 +40,7 @@ public interface ISharedActivity
     [RetryOptions("00:00:05", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
     Task<OrderDetails> CheckIsValid(OrderDetails orderDetails);
 
-    Task<ContainerAppCertificateData> UploadCertificate((string, IReadOnlyList<string>, OrderDetails, RSAParameters) input);
+    Task<ContainerAppCertificateItem> UploadCertificate((string, IReadOnlyList<string>, OrderDetails, RSAParameters) input);
 
     Task CleanupDnsChallenge(IReadOnlyList<AcmeChallengeResult> challengeResults);
 

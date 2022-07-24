@@ -33,14 +33,7 @@ public class GetEnvironments : HttpFunctionBase
 
         try
         {
-            var managedEnvironments = await activity.GetManagedEnvironments();
-
-            return managedEnvironments.Select(x => new ManagedEnvironmentItem
-            {
-                Id = x.Id,
-                Name = x.Name,
-                ResourceGroup = x.Id.ResourceGroupName
-            }).ToArray();
+            return await activity.GetManagedEnvironments();
         }
         catch
         {

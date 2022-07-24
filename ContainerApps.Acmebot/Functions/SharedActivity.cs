@@ -57,35 +57,80 @@ public class SharedActivity : ISharedActivity
     private const string IssuerName = "Acmebot";
 
     [FunctionName(nameof(GetManagedEnvironments))]
-    public async Task<IReadOnlyList<ManagedEnvironmentData>> GetManagedEnvironments([ActivityTrigger] object input = null)
+    public async Task<IReadOnlyList<ManagedEnvironmentItem>> GetManagedEnvironments([ActivityTrigger] object input = null)
     {
         var subscription = await _armClient.GetDefaultSubscriptionAsync();
 
-        return await subscription.ListAllManagedEnvironmentsAsync();
+        var managedEnvironments = new List<ManagedEnvironmentItem>();
+
+        await foreach (var managedEnvironment in subscription.GetManagedEnvironmentsAsync())
+        {
+            managedEnvironments.Add(new ManagedEnvironmentItem
+            {
+                Id = managedEnvironment.Id,
+                Name = managedEnvironment.Data.Name,
+                ResourceGroup = managedEnvironment.Id.ResourceGroupName
+            });
+        }
+
+        return managedEnvironments;
     }
 
     [FunctionName(nameof(GetContainerApps))]
-    public async Task<IReadOnlyList<ContainerAppData>> GetContainerApps([ActivityTrigger] string managedEnvironmentId)
+    public async Task<IReadOnlyList<ContainerAppItem>> GetContainerApps([ActivityTrigger] string managedEnvironmentId)
     {
         var subscription = await _armClient.GetDefaultSubscriptionAsync();
 
-        var containerApps = await subscription.ListAllContainerAppsAsync();
+        var containerApps = new List<ContainerAppItem>();
 
-        return containerApps.Where(x => x.ManagedEnvironmentId == managedEnvironmentId).ToArray();
+        await foreach (var containerApp in subscription.GetContainerAppsAsync())
+        {
+            if (containerApp.Data.ManagedEnvironmentId != managedEnvironmentId)
+            {
+                continue;
+            }
+
+            containerApps.Add(new ContainerAppItem
+            {
+                Id = containerApp.Id,
+                Name = containerApp.Data.Name
+            });
+        }
+
+        return containerApps;
     }
 
     [FunctionName(nameof(GetExpiringCertificates))]
-    public async Task<IReadOnlyList<ContainerAppCertificateData>> GetExpiringCertificates([ActivityTrigger] (string, DateTime) input)
+    public async Task<IReadOnlyList<ContainerAppCertificateItem>> GetExpiringCertificates([ActivityTrigger] (string, DateTime) input)
     {
         var (managedEnvironmentId, currentDateTime) = input;
 
         var managedEnvironment = _armClient.GetManagedEnvironmentResource(new ResourceIdentifier(managedEnvironmentId));
 
-        var containerAppCertificates = await managedEnvironment.GetContainerAppCertificates().ListAllAsync();
+        var containerAppCertificates = new List<ContainerAppCertificateItem>();
 
-        return containerAppCertificates.Where(x => x.TagsFilter(IssuerName, _options.Endpoint))
-                                       .Where(x => (x.Properties.ExpirationOn.Value - currentDateTime).TotalDays <= _options.RenewBeforeExpiry)
-                                       .ToArray();
+        await foreach (var containerAppCertificate in managedEnvironment.GetContainerAppCertificates())
+        {
+            if (!containerAppCertificate.Data.TagsFilter(IssuerName, _options.Endpoint))
+            {
+                continue;
+            }
+
+            if ((containerAppCertificate.Data.Properties.ExpirationOn.Value - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
+            {
+                continue;
+            }
+
+            containerAppCertificates.Add(new ContainerAppCertificateItem
+            {
+                Id = containerAppCertificate.Id,
+                Name = containerAppCertificate.Data.Name,
+                ExpirationOn = containerAppCertificate.Data.Properties.ExpirationOn.Value,
+                Tags = containerAppCertificate.Data.Tags
+            });
+        }
+
+        return containerAppCertificates;
     }
 
     [FunctionName(nameof(GetZones))]
@@ -370,7 +415,7 @@ public class SharedActivity : ISharedActivity
     }
 
     [FunctionName(nameof(UploadCertificate))]
-    public async Task<ContainerAppCertificateData> UploadCertificate([ActivityTrigger] (string, IReadOnlyList<string>, OrderDetails, RSAParameters) input)
+    public async Task<ContainerAppCertificateItem> UploadCertificate([ActivityTrigger] (string, IReadOnlyList<string>, OrderDetails, RSAParameters) input)
     {
         var (id, dnsNames, orderDetails, rsaParameters) = input;
 
@@ -405,14 +450,20 @@ public class SharedActivity : ISharedActivity
         });
 
         // 証明書リソースの作成後にタグのみ追加する
-        var containerAppCertificateWithTags = await containerAppCertificate.Value.SetTagsAsync(new Dictionary<string, string>
+        ContainerAppCertificateResource containerAppCertificateWithTags = await containerAppCertificate.Value.SetTagsAsync(new Dictionary<string, string>
         {
             { "Issuer", IssuerName },
             { "Endpoint", _options.Endpoint },
             { "DnsNames", string.Join(",", dnsNames) }
         });
 
-        return containerAppCertificateWithTags.Value.Data;
+        return new ContainerAppCertificateItem
+        {
+            Id = containerAppCertificateWithTags.Id,
+            Name = containerAppCertificateWithTags.Data.Name,
+            ExpirationOn = containerAppCertificateWithTags.Data.Properties.ExpirationOn.Value,
+            Tags = containerAppCertificateWithTags.Data.Tags
+        };
     }
 
     [FunctionName(nameof(CleanupDnsChallenge))]
@@ -518,15 +569,8 @@ public class SharedActivity : ISharedActivity
     {
         var (managedEnvironmentId, expirationDate, dnsNames) = input;
 
-        var managedEnvironmentName = ExtractResourceName(managedEnvironmentId);
+        var managedEnvironmentName = new ResourceIdentifier(managedEnvironmentId).Name;
 
         return _webhookInvoker.SendCompletedEventAsync(managedEnvironmentName, expirationDate, dnsNames);
-    }
-
-    private static string ExtractResourceName(string resourceId)
-    {
-        var values = resourceId.Split('/', StringSplitOptions.RemoveEmptyEntries);
-
-        return values[7];
     }
 }

@@ -35,9 +35,7 @@ public class GetApps : HttpFunctionBase
 
         try
         {
-            var containerApps = await activity.GetContainerApps(managedEnvironmentId);
-
-            return containerApps.Select(x => new ContainerAppItem { Id = x.Id, Name = x.Name }).ToArray();
+            return await activity.GetContainerApps(managedEnvironmentId);
         }
         catch
         {
