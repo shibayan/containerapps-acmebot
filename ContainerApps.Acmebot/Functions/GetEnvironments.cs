@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 using Azure.WebJobs.Extensions.HttpApi;
@@ -33,14 +32,7 @@ public class GetEnvironments : HttpFunctionBase
 
         try
         {
-            var managedEnvironments = await activity.GetManagedEnvironments();
-
-            return managedEnvironments.Select(x => new ManagedEnvironmentItem
-            {
-                Id = x.Id,
-                Name = x.Name,
-                ResourceGroup = x.GetResourceGroup()
-            }).ToArray();
+            return await activity.GetManagedEnvironments();
         }
         catch
         {

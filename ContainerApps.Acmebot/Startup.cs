@@ -1,7 +1,6 @@
 ﻿using Azure.Core;
 using Azure.Identity;
-using Azure.ResourceManager.App;
-using Azure.ResourceManager.Dns;
+using Azure.ResourceManager;
 
 using ContainerApps.Acmebot.Internal;
 using ContainerApps.Acmebot.Options;
@@ -63,19 +62,10 @@ public class Startup : FunctionsStartup
         builder.Services.AddSingleton(provider =>
         {
             var options = provider.GetRequiredService<IOptions<AcmebotOptions>>();
-            var credential = provider.GetRequiredService<TokenCredential>();
             var environment = provider.GetRequiredService<AzureEnvironment>();
-
-            return new ContainerAppsManagementClient(options.Value.SubscriptionId, environment.ResourceManager, credential);
-        });
-
-        builder.Services.AddSingleton(provider =>
-        {
-            var options = provider.GetRequiredService<IOptions<AcmebotOptions>>();
             var credential = provider.GetRequiredService<TokenCredential>();
-            var environment = provider.GetRequiredService<AzureEnvironment>();
 
-            return new DnsManagementClient(options.Value.SubscriptionId, environment.ResourceManager, credential);
+            return new ArmClient(credential, options.Value.SubscriptionId, new ArmClientOptions { Environment = environment.ResourceManager });
         });
 
         builder.Services.AddSingleton<AcmeProtocolClientFactory>();

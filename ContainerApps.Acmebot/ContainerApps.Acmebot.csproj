@@ -5,7 +5,8 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.6.0" />
-    <PackageReference Include="Azure.ResourceManager.Dns" Version="1.0.0-preview.1" />
+    <PackageReference Include="Azure.ResourceManager.Applications.Containers" Version="1.0.0-beta.1" />
+    <PackageReference Include="Azure.ResourceManager.Dns" Version="1.0.0-beta.1" />
     <PackageReference Include="DnsClient" Version="1.6.1" />
     <PackageReference Include="DurableTask.TypedProxy" Version="2.2.1" />
     <PackageReference Include="Microsoft.Azure.Functions.Extensions" Version="1.1.0" />
@@ -17,7 +18,6 @@
   <ItemGroup>
     <ProjectReference Include="..\ACMESharpCore\src\ACMESharp.DotNetCore\ACMESharp.DotNetCore.csproj" />
     <ProjectReference Include="..\ACMESharpCore\src\ACMESharp\ACMESharp.csproj" />
-    <ProjectReference Include="..\Azure.ResourceManager.App\Azure.ResourceManager.App.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
