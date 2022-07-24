@@ -2,6 +2,8 @@
 using System.Threading;
 using System.Threading.Tasks;
 
+using ContainerApps.Acmebot.Models;
+
 using DurableTask.TypedProxy;
 
 using Microsoft.Azure.WebJobs;
@@ -50,10 +52,10 @@ public class RenewCertificates
                     log.LogInformation($"Renew certificate = {certificate.Name},{certificate.ExpirationOn},{string.Join(",", dnsNames)}");
 
                     // 証明書の更新処理を開始
-                    await context.CallSubOrchestratorWithRetryAsync(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, (managedEnvironment.Id, dnsNames));
+                    var newCertificate = await context.CallSubOrchestratorWithRetryAsync<ContainerAppCertificateItem>(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, (managedEnvironment.Id, dnsNames));
 
                     // 証明書の更新が完了後に Webhook を送信する
-                    await activity.SendCompletedEvent((managedEnvironment.Id, certificate.ExpirationOn, dnsNames));
+                    await activity.SendCompletedEvent((managedEnvironment.Id, newCertificate.ExpirationOn, dnsNames));
                 }
                 catch (Exception ex)
                 {
