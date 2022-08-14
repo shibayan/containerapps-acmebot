@@ -16,7 +16,6 @@
     <PackageReference Include="WebJobs.Extensions.HttpApi" Version="2.0.3" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\ACMESharpCore\src\ACMESharp.DotNetCore\ACMESharp.DotNetCore.csproj" />
     <ProjectReference Include="..\ACMESharpCore\src\ACMESharp\ACMESharp.csproj" />
   </ItemGroup>
   <ItemGroup>
