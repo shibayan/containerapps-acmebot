@@ -4,8 +4,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.8.9.13224",
-      "templateHash": "11421282171113095335"
+      "version": "0.9.1.41621",
+      "templateHash": "321056593453536797"
     }
   },
   "parameters": {
@@ -54,7 +54,7 @@
   "resources": [
     {
       "type": "Microsoft.Storage/storageAccounts",
-      "apiVersion": "2021-06-01",
+      "apiVersion": "2021-09-01",
       "name": "[variables('storageAccountName')]",
       "location": "[parameters('location')]",
       "kind": "Storage",
@@ -69,15 +69,14 @@
     },
     {
       "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2021-02-01",
+      "apiVersion": "2022-03-01",
       "name": "[variables('appServicePlanName')]",
       "location": "[parameters('location')]",
       "sku": {
         "name": "Y1",
-        "tier": "Dynamic",
-        "size": "Y1",
-        "family": "Y"
-      }
+        "tier": "Dynamic"
+      },
+      "properties": {}
     },
     {
       "type": "Microsoft.OperationalInsights/workspaces",
@@ -110,7 +109,7 @@
     },
     {
       "type": "Microsoft.Web/sites",
-      "apiVersion": "2021-02-01",
+      "apiVersion": "2022-03-01",
       "name": "[variables('functionAppName')]",
       "location": "[parameters('location')]",
       "kind": "functionapp",
@@ -129,11 +128,11 @@
             },
             {
               "name": "AzureWebJobsStorage",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2021-06-01').keys[0].value, environment().suffixes.storage)]"
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2021-09-01').keys[0].value, environment().suffixes.storage)]"
             },
             {
               "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2021-06-01').keys[0].value, environment().suffixes.storage)]"
+              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2021-09-01').keys[0].value, environment().suffixes.storage)]"
             },
             {
               "name": "WEBSITE_CONTENTSHARE",
@@ -187,7 +186,7 @@
     },
     "identity": {
       "type": "object",
-      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2021-02-01', 'full').identity]"
+      "value": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-03-01', 'full').identity]"
     }
   }
 }
