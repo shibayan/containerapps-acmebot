@@ -26,7 +26,7 @@ var appInsightsEndpoints = {
   AzureUSGovernment: 'applicationinsights.us'
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2021-06-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
   name: storageAccountName
   location: location
   kind: 'Storage'
@@ -40,15 +40,14 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2021-06-01' = {
   }
 }
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2021-02-01' = {
+resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: appServicePlanName
   location: location
   sku: {
     name: 'Y1'
     tier: 'Dynamic'
-    size: 'Y1'
-    family: 'Y'
   }
+  properties: {}
 }
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
@@ -75,7 +74,7 @@ resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
   }
 }
 
-resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
+resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp'
