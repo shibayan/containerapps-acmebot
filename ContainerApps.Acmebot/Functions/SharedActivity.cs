@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 using ACMESharp.Authorizations;
@@ -537,11 +539,13 @@ public class SharedActivity : ISharedActivity
 
         foreach (var dnsName in dnsNames)
         {
-            CustomHostnameAnalysisResult result = await containerApp.GetCustomHostNameAnalysisAsync(dnsName);
+            var response = await containerApp.GetCustomHostNameAnalysisAsync(dnsName);
 
-            if (result.CustomDomainVerificationTest != DnsVerificationTestResult.Passed)
+            var result = response.GetRawResponse().Content.ToObjectFromJson<CustomHostNameAnalysisResult>();
+
+            if (result.CustomDomainVerificationTest != "Passed")
             {
-                throw new RetriableActivityException(result.CustomDomainVerificationFailureInfoError.Message);
+                throw new RetriableActivityException(result.CustomDomainVerificationFailureInfo["message"]?.ToString());
             }
         }
     }
@@ -575,4 +579,14 @@ public class SharedActivity : ISharedActivity
 
         return _webhookInvoker.SendCompletedEventAsync(managedEnvironmentName, expirationDate, dnsNames);
     }
+
+    public class CustomHostNameAnalysisResult
+    {
+        [JsonPropertyName("customDomainVerificationTest")]
+        public string CustomDomainVerificationTest { get; set; }
+
+        [JsonPropertyName("customDomainVerificationFailureInfo")]
+        public JsonObject CustomDomainVerificationFailureInfo { get; set; }
+    }
+
 }
