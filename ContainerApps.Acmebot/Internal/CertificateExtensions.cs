@@ -1,4 +1,4 @@
-﻿using Azure.ResourceManager.Applications.Containers;
+﻿using Azure.ResourceManager.AppContainers;
 
 namespace ContainerApps.Acmebot.Internal;
 
