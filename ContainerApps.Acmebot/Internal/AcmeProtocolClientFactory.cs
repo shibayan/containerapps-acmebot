@@ -91,7 +91,7 @@ public class AcmeProtocolClientFactory
         {
             var hmacKeyBytes = CryptoHelper.Base64.UrlDecode(_options.ExternalAccountBinding.HmacKey);
 
-            var hmac = (HMAC)(_options.ExternalAccountBinding.Algorithm switch
+            using var hmac = (HMAC)(_options.ExternalAccountBinding.Algorithm switch
             {
                 "HS256" => new HMACSHA256(hmacKeyBytes),
                 "HS384" => new HMACSHA384(hmacKeyBytes),
