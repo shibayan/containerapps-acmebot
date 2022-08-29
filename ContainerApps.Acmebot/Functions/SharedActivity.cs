@@ -385,7 +385,7 @@ public class SharedActivity : ISharedActivity
         var (dnsNames, orderDetails) = input;
 
         // App Service に ECDSA 証明書をアップロードするとエラーになるので一時的に RSA に
-        var rsa = RSA.Create(2048);
+        using var rsa = RSA.Create(2048);
         var csr = CryptoHelper.Rsa.GenerateCsr(dnsNames, rsa);
 
         // Order の最終処理を実行し、証明書を作成
@@ -403,19 +403,12 @@ public class SharedActivity : ISharedActivity
 
         orderDetails = await acmeProtocolClient.GetOrderDetailsAsync(orderDetails.OrderUrl, orderDetails);
 
-        if (orderDetails.Payload.Status is "pending" or "processing")
+        return orderDetails.Payload.Status switch
         {
-            // pending か processing の場合はリトライする
-            throw new RetriableActivityException($"Finalize request is {orderDetails.Payload.Status}. It will retry automatically.");
-        }
-
-        if (orderDetails.Payload.Status == "invalid")
-        {
-            // invalid の場合は最初から実行が必要なので失敗させる
-            throw new InvalidOperationException("Finalize request is invalid. Required retry at first.");
-        }
-
-        return orderDetails;
+            "pending" or "processing" => throw new RetriableActivityException($"Finalize request is {orderDetails.Payload.Status}. It will retry automatically."),
+            "invalid" => throw new InvalidOperationException("Finalize request is invalid. Required retry at first."),
+            _ => orderDetails
+        };
     }
 
     [FunctionName(nameof(UploadCertificate))]
@@ -429,12 +422,15 @@ public class SharedActivity : ISharedActivity
         var x509Certificates = await acmeProtocolClient.GetOrderCertificateAsync(orderDetails, _options.PreferredChain);
 
         // 秘密鍵を含んだ形で X509Certificate2 を作成
-        var rsa = RSA.Create(rsaParameters);
+        using var rsa = RSA.Create(rsaParameters);
 
         x509Certificates[0] = x509Certificates[0].CopyWithPrivateKey(rsa);
 
+        // 一時パスワードを生成
+        var password = Guid.NewGuid().ToString();
+
         // PFX 形式としてエクスポート
-        var pfxBlob = x509Certificates.Export(X509ContentType.Pfx, "P@ssw0rd");
+        var pfxBlob = x509Certificates.Export(X509ContentType.Pfx, password);
 
         var certificateName = dnsNames[0].Replace("*", "wildcard").Replace(".", "-");
 
@@ -448,7 +444,7 @@ public class SharedActivity : ISharedActivity
         {
             Properties = new CertificateProperties
             {
-                Password = "P@ssw0rd",
+                Password = password,
                 Value = pfxBlob
             }
         });
