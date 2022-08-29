@@ -433,8 +433,11 @@ public class SharedActivity : ISharedActivity
 
         x509Certificates[0] = x509Certificates[0].CopyWithPrivateKey(rsa);
 
+        // 一時パスワードを生成
+        var password = Guid.NewGuid().ToString();
+
         // PFX 形式としてエクスポート
-        var pfxBlob = x509Certificates.Export(X509ContentType.Pfx, "P@ssw0rd");
+        var pfxBlob = x509Certificates.Export(X509ContentType.Pfx, password);
 
         var certificateName = dnsNames[0].Replace("*", "wildcard").Replace(".", "-");
 
@@ -448,7 +451,7 @@ public class SharedActivity : ISharedActivity
         {
             Properties = new CertificateProperties
             {
-                Password = "P@ssw0rd",
+                Password = password,
                 Value = pfxBlob
             }
         });
