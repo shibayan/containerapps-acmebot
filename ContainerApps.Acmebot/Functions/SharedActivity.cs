@@ -556,17 +556,25 @@ public class SharedActivity : ISharedActivity
 
         ContainerAppResource containerApp = await _armClient.GetContainerAppResource(new ResourceIdentifier(containerAppId)).GetAsync();
 
-        var containerAppData = containerApp.Data;
+        var ingress = containerApp.Data.Configuration.Ingress;
 
         foreach (var dnsName in dnsNames)
         {
-            if (containerAppData.Configuration.Ingress.CustomDomains.All(x => x.Name != dnsName))
+            if (ingress.CustomDomains.All(x => x.Name != dnsName))
             {
-                containerAppData.Configuration.Ingress.CustomDomains.Add(new CustomDomain(dnsName, certificateId) { BindingType = BindingType.SniEnabled });
+                ingress.CustomDomains.Add(new CustomDomain(dnsName, certificateId) { BindingType = BindingType.SniEnabled });
             }
         }
 
-        await containerApp.UpdateAsync(WaitUntil.Completed, containerAppData);
+        var newContainerAppData = new ContainerAppData(containerApp.Data.Location)
+        {
+            Configuration = new ContainerAppConfiguration
+            {
+                Ingress = ingress
+            }
+        };
+
+        await containerApp.UpdateAsync(WaitUntil.Completed, newContainerAppData);
     }
 
     [FunctionName(nameof(SendCompletedEvent))]
