@@ -1,0 +1,9 @@
+name: CodeQL config
+
+queries:
+  - uses: security-and-quality
+
+paths:
+  - ContainerApps.Acmebot
+paths-ignore:
+  - '**/*.Generated.cs'
