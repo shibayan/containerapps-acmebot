@@ -26,7 +26,7 @@ var appInsightsEndpoints = {
   AzureUSGovernment: 'applicationinsights.us'
 }
 
-resource storageAccount 'Microsoft.Storage/storageAccounts@2021-09-01' = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2022-05-01' = {
   name: storageAccountName
   location: location
   kind: 'Storage'
@@ -50,7 +50,7 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   properties: {}
 }
 
-resource workspace 'Microsoft.OperationalInsights/workspaces@2021-06-01' = {
+resource workspace 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
   name: workspaceName
   location: location
   properties: {
@@ -132,6 +132,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
           value: environment().name
         }
       ]
+      netFrameworkVersion: 'v6.0'
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'
       scmMinTlsVersion: '1.2'
