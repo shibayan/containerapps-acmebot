@@ -269,16 +269,16 @@ public class SharedActivity : ISharedActivity
             var acmeDnsRecordName = dnsRecordName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
             // TXT レコードに TTL と値をセットする
-            var recordSets = dnsZone.GetTxtRecords();
+            var recordSets = dnsZone.GetDnsTxtRecords();
 
-            var recordSet = new TxtRecordData
+            var recordSet = new DnsTxtRecordData
             {
                 TtlInSeconds = 60
             };
 
             foreach (var value in lookup)
             {
-                recordSet.TxtRecords.Add(new TxtRecordInfo { Values = { value.DnsRecordValue } });
+                recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { value.DnsRecordValue } });
             }
 
             await recordSets.CreateOrUpdateAsync(WaitUntil.Completed, acmeDnsRecordName, recordSet);
@@ -486,7 +486,7 @@ public class SharedActivity : ISharedActivity
             // Challenge の詳細から Azure DNS 向けにレコード名を作成
             var acmeDnsRecordName = dnsRecordName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
-            TxtRecordResource recordSet = await dnsZone.GetTxtRecordAsync(acmeDnsRecordName);
+            DnsTxtRecordResource recordSet = await dnsZone.GetDnsTxtRecordAsync(acmeDnsRecordName);
 
             await recordSet.DeleteAsync(WaitUntil.Completed);
         }
@@ -510,12 +510,12 @@ public class SharedActivity : ISharedActivity
                                   .MaxBy(x => x.Data.Name.Length);
 
             // Container Apps のカスタムドメイン所有チェック用 TXT レコードを作成
-            var recordSet = new TxtRecordData
+            var recordSet = new DnsTxtRecordData
             {
                 TtlInSeconds = 3600
             };
 
-            recordSet.TxtRecords.Add(new TxtRecordInfo { Values = { containerApp.Data.CustomDomainVerificationId } });
+            recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { containerApp.Data.CustomDomainVerificationId } });
 
             // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
             var varificationDnsName = $"asuid.{dnsName.Replace("*.", "")}";
@@ -523,7 +523,7 @@ public class SharedActivity : ISharedActivity
             // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
             var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
-            var recordSets = dnsZone.GetTxtRecords();
+            var recordSets = dnsZone.GetDnsTxtRecords();
 
             await recordSets.CreateOrUpdateAsync(WaitUntil.Completed, relativeDnsName, recordSet);
         }
