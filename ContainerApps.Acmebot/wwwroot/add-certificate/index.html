@@ -83,6 +83,25 @@
         </div>
         <div class="field is-horizontal">
           <div class="field-label">
+            <label class="label">Bind to Custom DNS Suffix</label>
+          </div>
+          <div class="field-body">
+            <div class="field is-narrow">
+              <div class="control">
+                <label class="radio">
+                  <input type="radio" v-model="bindToCustomDnsSuffix" v-bind:value="true">
+                  Yes
+                </label>
+                <label class="radio">
+                  <input type="radio" v-model="bindToCustomDnsSuffix" v-bind:value="false">
+                  No
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div v-if="!bindToCustomDnsSuffix" class="field is-horizontal">
+          <div class="field-label">
             <label class="label">Bind to Container App</label>
           </div>
           <div class="field-body">
@@ -148,6 +167,7 @@
           environments: [],
           apps: [],
           environmentId: '',
+          bindToCustomDnsSuffix: false,
           bindToContainerApp: false,
           appId: '',
           loading: false,
@@ -226,6 +246,7 @@
           const postData = {
             dnsNames: this.dnsNames,
             managedEnvironmentId: this.environmentId,
+            bindToCustomDnsSuffix: this.bindToCustomDnsSuffix,
             bindToContainerApp: this.bindToContainerApp,
             containerAppId: this.appId
           };

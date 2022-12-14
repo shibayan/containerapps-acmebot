@@ -14,6 +14,9 @@ public class AddCertificateRequest : IValidatableObject
     [Required]
     public string ManagedEnvironmentId { get; set; }
 
+    [JsonProperty("bindToCustomDnsSuffix")]
+    public bool BindToCustomDnsSuffix { get; set; }
+
     [JsonProperty("bindToContainerApp")]
     public bool BindToContainerApp { get; set; }
 
@@ -25,6 +28,11 @@ public class AddCertificateRequest : IValidatableObject
         if (DnsNames == null || DnsNames.Length == 0)
         {
             yield return new ValidationResult($"The {nameof(DnsNames)} is required.", new[] { nameof(DnsNames) });
+        }
+
+        if (BindToCustomDnsSuffix && (DnsNames is not { Length: 1 } || !DnsNames[0].StartsWith("*")))
+        {
+            yield return new ValidationResult("A single wildcard certificate is required.", new[] { nameof(DnsNames) });
         }
 
         if (BindToContainerApp && string.IsNullOrEmpty(ContainerAppId))
