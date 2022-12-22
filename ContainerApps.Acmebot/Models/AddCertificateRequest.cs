@@ -25,12 +25,12 @@ public class AddCertificateRequest : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (DnsNames == null || DnsNames.Length == 0)
+        if (DnsNames is null || DnsNames.Length == 0)
         {
             yield return new ValidationResult($"The {nameof(DnsNames)} is required.", new[] { nameof(DnsNames) });
         }
 
-        if (BindToCustomDnsSuffix && (DnsNames is not { Length: 1 } || !DnsNames[0].StartsWith("*")))
+        if (BindToCustomDnsSuffix && (DnsNames is null || DnsNames.Length != 1 || !DnsNames[0].StartsWith("*")))
         {
             yield return new ValidationResult("A single wildcard certificate is required.", new[] { nameof(DnsNames) });
         }
