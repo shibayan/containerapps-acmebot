@@ -13,8 +13,8 @@ public class ContainerAppCertificateItem
     [JsonProperty("name")]
     public string Name { get; set; }
 
-    [JsonProperty("expirationOn")]
-    public DateTimeOffset ExpirationOn { get; set; }
+    [JsonProperty("expireOn")]
+    public DateTimeOffset ExpireOn { get; set; }
 
     [JsonProperty("tags")]
     public IDictionary<string, string> Tags { get; set; }

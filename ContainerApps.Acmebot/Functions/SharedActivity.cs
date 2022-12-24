@@ -65,7 +65,7 @@ public class SharedActivity : ISharedActivity
 
         var managedEnvironments = new List<ManagedEnvironmentItem>();
 
-        await foreach (var managedEnvironment in subscription.GetManagedEnvironmentsAsync())
+        await foreach (var managedEnvironment in subscription.GetContainerAppManagedEnvironmentsAsync())
         {
             managedEnvironments.Add(new ManagedEnvironmentItem
             {
@@ -107,18 +107,18 @@ public class SharedActivity : ISharedActivity
     {
         var (managedEnvironmentId, currentDateTime) = input;
 
-        var managedEnvironment = _armClient.GetManagedEnvironmentResource(new ResourceIdentifier(managedEnvironmentId));
+        var managedEnvironment = _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(managedEnvironmentId));
 
         var containerAppCertificates = new List<ContainerAppCertificateItem>();
 
-        await foreach (var containerAppCertificate in managedEnvironment.GetContainerAppCertificates())
+        await foreach (var containerAppCertificate in managedEnvironment.GetContainerAppManagedEnvironmentCertificates())
         {
             if (!containerAppCertificate.Data.TagsFilter(IssuerName, _options.Endpoint))
             {
                 continue;
             }
 
-            if ((containerAppCertificate.Data.Properties.ExpirationOn.Value - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
+            if ((containerAppCertificate.Data.Properties.ExpireOn.Value - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
             {
                 continue;
             }
@@ -127,7 +127,7 @@ public class SharedActivity : ISharedActivity
             {
                 Id = containerAppCertificate.Id,
                 Name = containerAppCertificate.Data.Name,
-                ExpirationOn = containerAppCertificate.Data.Properties.ExpirationOn.Value,
+                ExpireOn = containerAppCertificate.Data.Properties.ExpireOn.Value,
                 Tags = containerAppCertificate.Data.Tags
             });
         }
@@ -435,14 +435,14 @@ public class SharedActivity : ISharedActivity
         var certificateName = dnsNames[0].Replace("*", "wildcard").Replace(".", "-");
 
         // Managed Environment の情報を ARM から取得
-        ManagedEnvironmentResource managedEnvironment = await _armClient.GetManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
+        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
 
-        var containerAppCertificates = managedEnvironment.GetContainerAppCertificates();
+        var containerAppCertificates = managedEnvironment.GetContainerAppManagedEnvironmentCertificates();
 
         // 作成時にリソースタグが追加できないので先に証明書リソースを作成する
         var containerAppCertificate = await containerAppCertificates.CreateOrUpdateAsync(WaitUntil.Completed, certificateName, new ContainerAppCertificateData(managedEnvironment.Data.Location)
         {
-            Properties = new CertificateProperties
+            Properties = new ContainerAppCertificateProperties
             {
                 Password = password,
                 Value = pfxBlob
@@ -450,7 +450,7 @@ public class SharedActivity : ISharedActivity
         });
 
         // 証明書リソースの作成後にタグのみ追加する
-        ContainerAppCertificateResource containerAppCertificateWithTags = await containerAppCertificate.Value.SetTagsAsync(new Dictionary<string, string>
+        ContainerAppManagedEnvironmentCertificateResource containerAppCertificateWithTags = await containerAppCertificate.Value.SetTagsAsync(new Dictionary<string, string>
         {
             { "Issuer", IssuerName },
             { "Endpoint", _options.Endpoint },
@@ -461,7 +461,7 @@ public class SharedActivity : ISharedActivity
         {
             Id = containerAppCertificateWithTags.Id,
             Name = containerAppCertificateWithTags.Data.Name,
-            ExpirationOn = containerAppCertificateWithTags.Data.Properties.ExpirationOn.Value,
+            ExpireOn = containerAppCertificateWithTags.Data.Properties.ExpireOn.Value,
             Tags = containerAppCertificateWithTags.Data.Tags
         };
     }
@@ -562,7 +562,10 @@ public class SharedActivity : ISharedActivity
         {
             if (ingress.CustomDomains.All(x => x.Name != dnsName))
             {
-                ingress.CustomDomains.Add(new CustomDomain(dnsName, certificateId) { BindingType = BindingType.SniEnabled });
+                ingress.CustomDomains.Add(new ContainerAppCustomDomain(dnsName, new ResourceIdentifier(certificateId))
+                {
+                    BindingType = ContainerAppCustomDomainBindingType.SniEnabled
+                });
             }
         }
 
