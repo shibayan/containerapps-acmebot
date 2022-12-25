@@ -15,7 +15,7 @@ internal class ArmSdkMitigatePolicy : HttpPipelineSynchronousPolicy
             return;
         }
 
-        var reader = new StreamReader(message.Response.ContentStream);
+        using var reader = new StreamReader(message.Response.ContentStream, leaveOpen: true);
         var content = reader.ReadToEnd().Replace("outboundIpAddresses", "outboundIpAddresses_");
         var stream = new MemoryStream();
         stream.Write(Encoding.UTF8.GetBytes(content));
