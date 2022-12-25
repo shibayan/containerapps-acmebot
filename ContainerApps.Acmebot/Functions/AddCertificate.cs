@@ -43,7 +43,7 @@ public class AddCertificate : HttpFunctionBase
         }
 
         // 証明書の更新が完了後に Webhook を送信する
-        await activity.SendCompletedEvent((request.ManagedEnvironmentId, certificate.ExpirationOn, asciiDnsNames));
+        await activity.SendCompletedEvent((request.ManagedEnvironmentId, certificate.ExpireOn, asciiDnsNames));
     }
 
     [FunctionName($"{nameof(AddCertificate)}_{nameof(HttpStart)}")]
