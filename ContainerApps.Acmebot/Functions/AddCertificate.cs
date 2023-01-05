@@ -33,8 +33,11 @@ public class AddCertificate : HttpFunctionBase
 
         var asciiDnsNames = request.DnsNames.Select(Punycode.Encode).ToArray();
 
-        // 証明書を発行し Azure にアップロード
-        var certificate = await context.CallSubOrchestratorAsync<ContainerAppCertificateItem>(nameof(SharedOrchestrator.IssueCertificate), (request.ManagedEnvironmentId, asciiDnsNames));
+        // ACME で証明書を発行する
+        var (pfxBlob, password) = await context.CallSubOrchestratorAsync<(byte[], string)>(nameof(SharedOrchestrator.IssueCertificate), asciiDnsNames);
+
+        // PFX を Container Apps Environment へアップロード
+        var certificate = await activity.UploadCertificate((request.ManagedEnvironmentId, asciiDnsNames, pfxBlob, password));
 
         // Container App と DNS にカスタムドメイン設定自体を追加する
         if (request.BindToContainerApp)

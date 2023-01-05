@@ -40,7 +40,13 @@ public interface ISharedActivity
     [RetryOptions("00:00:05", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
     Task<OrderDetails> CheckIsValid(OrderDetails orderDetails);
 
-    Task<ContainerAppCertificateItem> UploadCertificate((string, IReadOnlyList<string>, OrderDetails, RSAParameters) input);
+    Task<(byte[], string)> MergeCertificate((OrderDetails, RSAParameters) input);
+
+    Task<ContainerAppCertificateItem> UploadCertificate((string, IReadOnlyList<string>, byte[], string) input);
+
+    Task CreateDnsSuffixVerification((string, string) input);
+
+    Task UploadDnsSuffix((string, string, byte[], string) input);
 
     Task CleanupDnsChallenge(IReadOnlyList<AcmeChallengeResult> challengeResults);
 

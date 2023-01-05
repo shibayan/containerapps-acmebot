@@ -32,11 +32,17 @@ public class AddDnsSuffix : HttpFunctionBase
 
         var asciiDnsSuffix = Punycode.Encode(request.DnsSuffix);
 
-        // 証明書を発行し Azure にアップロード
-        var certificate = await context.CallSubOrchestratorAsync<ContainerAppCertificateItem>(nameof(SharedOrchestrator.IssueCertificate), (request.ManagedEnvironmentId, asciiDnsSuffix));
+        // DNS サフィックス用のワイルドカード証明書を作成する
+        var asciiDnsNames = new[] { $"*.{asciiDnsSuffix}" };
 
-        // 証明書の更新が完了後に Webhook を送信する
-        await activity.SendCompletedEvent((request.ManagedEnvironmentId, certificate.ExpireOn, new[] { asciiDnsSuffix }));
+        // ACME で証明書を発行する
+        var (pfxBlob, password) = await context.CallSubOrchestratorAsync<(byte[], string)>(nameof(SharedOrchestrator.IssueCertificate), asciiDnsNames);
+
+        // 検証用の DNS レコードを作成
+        await activity.CreateDnsSuffixVerification((request.ManagedEnvironmentId, asciiDnsSuffix));
+
+        // DNS サフィックスを追加する
+        await activity.UploadDnsSuffix((request.ManagedEnvironmentId, asciiDnsSuffix, pfxBlob, password));
     }
 
     [FunctionName($"{nameof(AddDnsSuffix)}_{nameof(HttpStart)}")]

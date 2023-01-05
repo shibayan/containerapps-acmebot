@@ -13,9 +13,9 @@ namespace ContainerApps.Acmebot.Functions;
 public class SharedOrchestrator
 {
     [FunctionName(nameof(IssueCertificate))]
-    public async Task<ContainerAppCertificateItem> IssueCertificate([OrchestrationTrigger] IDurableOrchestrationContext context)
+    public async Task<(byte[], string)> IssueCertificate([OrchestrationTrigger] IDurableOrchestrationContext context)
     {
-        var (managedEnvironmentId, dnsNames) = context.GetInput<(string, string[])>();
+        var dnsNames = context.GetInput<string[]>();
 
         var activity = context.CreateActivityProxy<ISharedActivity>();
 
@@ -57,10 +57,8 @@ public class SharedOrchestrator
             finalize = await activity.CheckIsValid(finalize);
         }
 
-        // 証明書をダウンロードし Container Apps Environment へアップロード
-        var certificate = await activity.UploadCertificate((managedEnvironmentId, dnsNames, finalize, rsaParameters));
-
-        return certificate;
+        // 証明書と秘密鍵をマージして PFX を生成
+        return await activity.MergeCertificate((finalize, rsaParameters));
     }
 
     [FunctionName(nameof(BindToContainerApp))]

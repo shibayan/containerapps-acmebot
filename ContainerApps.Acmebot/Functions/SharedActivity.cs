@@ -409,10 +409,9 @@ public class SharedActivity : ISharedActivity
         };
     }
 
-    [FunctionName(nameof(UploadCertificate))]
-    public async Task<ContainerAppCertificateItem> UploadCertificate([ActivityTrigger] (string, IReadOnlyList<string>, OrderDetails, RSAParameters) input)
+    public async Task<(byte[], string)> MergeCertificate((OrderDetails, RSAParameters) input)
     {
-        var (id, dnsNames, orderDetails, rsaParameters) = input;
+        var (orderDetails, rsaParameters) = input;
 
         var acmeProtocolClient = await _acmeProtocolClientFactory.CreateClientAsync();
 
@@ -429,6 +428,14 @@ public class SharedActivity : ISharedActivity
 
         // PFX 形式としてエクスポート
         var pfxBlob = x509Certificates.Export(X509ContentType.Pfx, password);
+
+        return (pfxBlob, password);
+    }
+
+    [FunctionName(nameof(UploadCertificate))]
+    public async Task<ContainerAppCertificateItem> UploadCertificate([ActivityTrigger] (string, IReadOnlyList<string>, byte[], string) input)
+    {
+        var (id, dnsNames, pfxBlob, password) = input;
 
         var certificateName = dnsNames[0].Replace("*", "wildcard").Replace(".", "-");
 
@@ -462,6 +469,56 @@ public class SharedActivity : ISharedActivity
             ExpireOn = containerAppCertificateWithTags.Data.Properties.ExpireOn.Value,
             Tags = containerAppCertificateWithTags.Data.Tags
         };
+    }
+
+    [FunctionName(nameof(CreateDnsSuffixVerification))]
+    public async Task CreateDnsSuffixVerification([ActivityTrigger] (string, string) input)
+    {
+        var (id, dnsSuffix) = input;
+
+        // Managed Environment の情報を ARM から取得
+        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
+
+        // Azure DNS zone の一覧を取得する
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
+
+        var dnsZone = dnsZones.Where(x => string.Equals(dnsSuffix, x.Data.Name, StringComparison.OrdinalIgnoreCase) || dnsSuffix.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                              .MaxBy(x => x.Data.Name.Length);
+
+        // カスタムドメイン所有チェック用 TXT レコードを作成
+        var recordSet = new DnsTxtRecordData
+        {
+            TtlInSeconds = 3600
+        };
+
+        recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { managedEnvironment.Data.CustomDomainConfiguration.CustomDomainVerificationId } });
+
+        // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
+        var varificationDnsName = $"asuid.{dnsSuffix}";
+
+        // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
+        var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
+
+        var recordSets = dnsZone.GetDnsTxtRecords();
+
+        await recordSets.CreateOrUpdateAsync(WaitUntil.Completed, relativeDnsName, recordSet);
+    }
+
+    [FunctionName(nameof(UploadDnsSuffix))]
+    public async Task UploadDnsSuffix([ActivityTrigger] (string, string, byte[], string) input)
+    {
+        var (id, dnsSuffix, pfxBlob, password) = input;
+
+        // Managed Environment の情報を ARM から取得
+        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
+
+        managedEnvironment.Data.CustomDomainConfiguration.DnsSuffix = dnsSuffix;
+        managedEnvironment.Data.CustomDomainConfiguration.CertificateValue = pfxBlob;
+        managedEnvironment.Data.CustomDomainConfiguration.CertificatePassword = password;
+
+        await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
     }
 
     [FunctionName(nameof(CleanupDnsChallenge))]
