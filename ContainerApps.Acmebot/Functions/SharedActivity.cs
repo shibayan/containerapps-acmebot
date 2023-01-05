@@ -409,7 +409,8 @@ public class SharedActivity : ISharedActivity
         };
     }
 
-    public async Task<(byte[], string)> MergeCertificate((OrderDetails, RSAParameters) input)
+    [FunctionName(nameof(MergeCertificate))]
+    public async Task<(byte[], string)> MergeCertificate([ActivityTrigger] (OrderDetails, RSAParameters) input)
     {
         var (orderDetails, rsaParameters) = input;
 
