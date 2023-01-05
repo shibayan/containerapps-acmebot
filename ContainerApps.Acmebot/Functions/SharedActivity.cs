@@ -76,6 +76,38 @@ public class SharedActivity : ISharedActivity
         return managedEnvironments;
     }
 
+    [FunctionName(nameof(GetExpiringManagedEnvironments))]
+    public async Task<IReadOnlyList<ManagedEnvironmentItem>> GetExpiringManagedEnvironments([ActivityTrigger] DateTime currentDateTime)
+    {
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var managedEnvironments = new List<ManagedEnvironmentItem>();
+
+        await foreach (var managedEnvironment in subscription.GetContainerAppManagedEnvironmentsAsync())
+        {
+            if (!managedEnvironment.Data.TagsFilter(IssuerName, _options.Endpoint))
+            {
+                continue;
+            }
+
+            if ((managedEnvironment.Data.CustomDomainConfiguration.ExpireOn.GetValueOrDefault(DateTimeOffset.MaxValue) - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
+            {
+                continue;
+            }
+
+            managedEnvironments.Add(new ManagedEnvironmentItem
+            {
+                Id = managedEnvironment.Id,
+                Name = managedEnvironment.Data.Name,
+                ResourceGroup = managedEnvironment.Id.ResourceGroupName,
+                DnsSuffix = managedEnvironment.Data.CustomDomainConfiguration.DnsSuffix,
+                ExpireOn = managedEnvironment.Data.CustomDomainConfiguration.ExpireOn ?? DateTimeOffset.MaxValue
+            });
+        }
+
+        return managedEnvironments;
+    }
+
     [FunctionName(nameof(GetContainerApps))]
     public async Task<IReadOnlyList<ContainerAppItem>> GetContainerApps([ActivityTrigger] string managedEnvironmentId)
     {
@@ -116,7 +148,7 @@ public class SharedActivity : ISharedActivity
                 continue;
             }
 
-            if ((containerAppCertificate.Data.Properties.ExpireOn.Value - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
+            if ((containerAppCertificate.Data.Properties.ExpireOn.GetValueOrDefault(DateTimeOffset.MaxValue) - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
             {
                 continue;
             }
@@ -125,7 +157,7 @@ public class SharedActivity : ISharedActivity
             {
                 Id = containerAppCertificate.Id,
                 Name = containerAppCertificate.Data.Name,
-                ExpireOn = containerAppCertificate.Data.Properties.ExpireOn.Value,
+                ExpireOn = containerAppCertificate.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
                 Tags = containerAppCertificate.Data.Tags
             });
         }
@@ -377,6 +409,32 @@ public class SharedActivity : ISharedActivity
         }
     }
 
+    [FunctionName(nameof(CleanupDnsChallenge))]
+    public async Task CleanupDnsChallenge([ActivityTrigger] IReadOnlyList<AcmeChallengeResult> challengeResults)
+    {
+        // Azure DNS zone の一覧を取得する
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
+
+        // DNS-01 の検証レコード名毎に Azure DNS から TXT レコードを削除
+        foreach (var lookup in challengeResults.ToLookup(x => x.DnsRecordName))
+        {
+            var dnsRecordName = lookup.Key;
+
+            var dnsZone = dnsZones.Where(x => dnsRecordName.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                                  .OrderByDescending(x => x.Data.Name.Length)
+                                  .First();
+
+            // Challenge の詳細から Azure DNS 向けにレコード名を作成
+            var acmeDnsRecordName = dnsRecordName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
+
+            DnsTxtRecordResource recordSet = await dnsZone.GetDnsTxtRecordAsync(acmeDnsRecordName);
+
+            await recordSet.DeleteAsync(WaitUntil.Completed);
+        }
+    }
+
     [FunctionName(nameof(FinalizeOrder))]
     public async Task<(OrderDetails, RSAParameters)> FinalizeOrder([ActivityTrigger] (IReadOnlyList<string>, OrderDetails) input)
     {
@@ -467,85 +525,9 @@ public class SharedActivity : ISharedActivity
         {
             Id = containerAppCertificateWithTags.Id,
             Name = containerAppCertificateWithTags.Data.Name,
-            ExpireOn = containerAppCertificateWithTags.Data.Properties.ExpireOn.Value,
+            ExpireOn = containerAppCertificateWithTags.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
             Tags = containerAppCertificateWithTags.Data.Tags
         };
-    }
-
-    [FunctionName(nameof(CreateDnsSuffixVerification))]
-    public async Task CreateDnsSuffixVerification([ActivityTrigger] (string, string) input)
-    {
-        var (id, dnsSuffix) = input;
-
-        // Managed Environment の情報を ARM から取得
-        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
-
-        // Azure DNS zone の一覧を取得する
-        var subscription = await _armClient.GetDefaultSubscriptionAsync();
-
-        var dnsZones = await subscription.ListAllDnsZonesAsync();
-
-        var dnsZone = dnsZones.Where(x => string.Equals(dnsSuffix, x.Data.Name, StringComparison.OrdinalIgnoreCase) || dnsSuffix.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
-                              .MaxBy(x => x.Data.Name.Length);
-
-        // カスタムドメイン所有チェック用 TXT レコードを作成
-        var recordSet = new DnsTxtRecordData
-        {
-            TtlInSeconds = 3600
-        };
-
-        recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { managedEnvironment.Data.CustomDomainConfiguration.CustomDomainVerificationId } });
-
-        // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
-        var varificationDnsName = $"asuid.{dnsSuffix}";
-
-        // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
-        var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
-
-        var recordSets = dnsZone.GetDnsTxtRecords();
-
-        await recordSets.CreateOrUpdateAsync(WaitUntil.Completed, relativeDnsName, recordSet);
-    }
-
-    [FunctionName(nameof(UploadDnsSuffix))]
-    public async Task UploadDnsSuffix([ActivityTrigger] (string, string, byte[], string) input)
-    {
-        var (id, dnsSuffix, pfxBlob, password) = input;
-
-        // Managed Environment の情報を ARM から取得
-        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
-
-        managedEnvironment.Data.CustomDomainConfiguration.DnsSuffix = dnsSuffix;
-        managedEnvironment.Data.CustomDomainConfiguration.CertificateValue = pfxBlob;
-        managedEnvironment.Data.CustomDomainConfiguration.CertificatePassword = password;
-
-        await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
-    }
-
-    [FunctionName(nameof(CleanupDnsChallenge))]
-    public async Task CleanupDnsChallenge([ActivityTrigger] IReadOnlyList<AcmeChallengeResult> challengeResults)
-    {
-        // Azure DNS zone の一覧を取得する
-        var subscription = await _armClient.GetDefaultSubscriptionAsync();
-
-        var dnsZones = await subscription.ListAllDnsZonesAsync();
-
-        // DNS-01 の検証レコード名毎に Azure DNS から TXT レコードを削除
-        foreach (var lookup in challengeResults.ToLookup(x => x.DnsRecordName))
-        {
-            var dnsRecordName = lookup.Key;
-
-            var dnsZone = dnsZones.Where(x => dnsRecordName.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
-                                  .OrderByDescending(x => x.Data.Name.Length)
-                                  .First();
-
-            // Challenge の詳細から Azure DNS 向けにレコード名を作成
-            var acmeDnsRecordName = dnsRecordName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
-
-            DnsTxtRecordResource recordSet = await dnsZone.GetDnsTxtRecordAsync(acmeDnsRecordName);
-
-            await recordSet.DeleteAsync(WaitUntil.Completed);
-        }
     }
 
     [FunctionName(nameof(CreateDomainVerification))]
@@ -632,6 +614,56 @@ public class SharedActivity : ISharedActivity
         };
 
         await containerApp.UpdateAsync(WaitUntil.Completed, newContainerAppData);
+    }
+
+    [FunctionName(nameof(CreateDnsSuffixVerification))]
+    public async Task CreateDnsSuffixVerification([ActivityTrigger] (string, string) input)
+    {
+        var (id, dnsSuffix) = input;
+
+        // Managed Environment の情報を ARM から取得
+        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
+
+        // Azure DNS zone の一覧を取得する
+        var subscription = await _armClient.GetDefaultSubscriptionAsync();
+
+        var dnsZones = await subscription.ListAllDnsZonesAsync();
+
+        var dnsZone = dnsZones.Where(x => string.Equals(dnsSuffix, x.Data.Name, StringComparison.OrdinalIgnoreCase) || dnsSuffix.EndsWith($".{x.Data.Name}", StringComparison.OrdinalIgnoreCase))
+                              .MaxBy(x => x.Data.Name.Length);
+
+        // カスタムドメイン所有チェック用 TXT レコードを作成
+        var recordSet = new DnsTxtRecordData
+        {
+            TtlInSeconds = 3600
+        };
+
+        recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { managedEnvironment.Data.CustomDomainConfiguration.CustomDomainVerificationId } });
+
+        // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
+        var varificationDnsName = $"asuid.{dnsSuffix}";
+
+        // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
+        var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
+
+        var recordSets = dnsZone.GetDnsTxtRecords();
+
+        await recordSets.CreateOrUpdateAsync(WaitUntil.Completed, relativeDnsName, recordSet);
+    }
+
+    [FunctionName(nameof(BindDnsSuffix))]
+    public async Task BindDnsSuffix([ActivityTrigger] (string, string, byte[], string) input)
+    {
+        var (id, dnsSuffix, pfxBlob, password) = input;
+
+        // Managed Environment の情報を ARM から取得
+        ContainerAppManagedEnvironmentResource managedEnvironment = await _armClient.GetContainerAppManagedEnvironmentResource(new ResourceIdentifier(id)).GetAsync();
+
+        managedEnvironment.Data.CustomDomainConfiguration.DnsSuffix = dnsSuffix;
+        managedEnvironment.Data.CustomDomainConfiguration.CertificateValue = pfxBlob;
+        managedEnvironment.Data.CustomDomainConfiguration.CertificatePassword = password;
+
+        await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
     }
 
     [FunctionName(nameof(SendCompletedEvent))]

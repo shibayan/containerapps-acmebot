@@ -41,8 +41,8 @@ public class AddDnsSuffix : HttpFunctionBase
         // 検証用の DNS レコードを作成
         await activity.CreateDnsSuffixVerification((request.ManagedEnvironmentId, asciiDnsSuffix));
 
-        // DNS サフィックスを追加する
-        await activity.UploadDnsSuffix((request.ManagedEnvironmentId, asciiDnsSuffix, pfxBlob, password));
+        // DNS サフィックスを更新する
+        await activity.BindDnsSuffix((request.ManagedEnvironmentId, asciiDnsSuffix, pfxBlob, password));
     }
 
     [FunctionName($"{nameof(AddDnsSuffix)}_{nameof(HttpStart)}")]
