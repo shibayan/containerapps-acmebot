@@ -15,6 +15,8 @@ public interface ISharedActivity
 {
     Task<IReadOnlyList<ManagedEnvironmentItem>> GetManagedEnvironments(object input = null);
 
+    Task<IReadOnlyList<ManagedEnvironmentItem>> GetExpiringManagedEnvironments(DateTime currentDateTime);
+
     Task<IReadOnlyList<ContainerAppItem>> GetContainerApps(string managedEnvironmentId);
 
     Task<IReadOnlyList<ContainerAppCertificateItem>> GetExpiringCertificates((string, DateTime) input);
@@ -35,14 +37,16 @@ public interface ISharedActivity
     [RetryOptions("00:00:05", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
     Task CheckIsReady((OrderDetails, IReadOnlyList<AcmeChallengeResult>) input);
 
+    Task CleanupDnsChallenge(IReadOnlyList<AcmeChallengeResult> challengeResults);
+
     Task<(OrderDetails, RSAParameters)> FinalizeOrder((IReadOnlyList<string>, OrderDetails) input);
 
     [RetryOptions("00:00:05", 12, HandlerType = typeof(ExceptionRetryStrategy<RetriableActivityException>))]
     Task<OrderDetails> CheckIsValid(OrderDetails orderDetails);
 
-    Task<ContainerAppCertificateItem> UploadCertificate((string, IReadOnlyList<string>, OrderDetails, RSAParameters) input);
+    Task<(byte[], string)> MergeCertificate((OrderDetails, RSAParameters) input);
 
-    Task CleanupDnsChallenge(IReadOnlyList<AcmeChallengeResult> challengeResults);
+    Task<ContainerAppCertificateItem> UploadCertificate((string, IReadOnlyList<string>, byte[], string) input);
 
     Task CreateDomainVerification((string, IReadOnlyList<string>) input);
 
@@ -50,6 +54,10 @@ public interface ISharedActivity
     Task ValidateDomain((string, IReadOnlyList<string>) input);
 
     Task BindDomains((string, string, IReadOnlyList<string>) input);
+
+    Task CreateDnsSuffixVerification((string, string) input);
+
+    Task<DateTimeOffset> BindDnsSuffix((string, string, byte[], string) input);
 
     Task SendCompletedEvent((string, DateTimeOffset, IReadOnlyList<string>) input);
 }

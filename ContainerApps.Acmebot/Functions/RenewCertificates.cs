@@ -2,8 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using ContainerApps.Acmebot.Models;
-
 using DurableTask.TypedProxy;
 
 using Microsoft.Azure.WebJobs;
@@ -51,8 +49,11 @@ public class RenewCertificates
 
                     log.LogInformation($"Renew certificate = {certificate.Name},{certificate.ExpireOn},{string.Join(",", dnsNames)}");
 
-                    // 証明書の更新処理を開始
-                    var newCertificate = await context.CallSubOrchestratorWithRetryAsync<ContainerAppCertificateItem>(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, (managedEnvironment.Id, dnsNames));
+                    // ACME で証明書を発行する
+                    var (pfxBlob, password) = await context.CallSubOrchestratorWithRetryAsync<(byte[], string)>(nameof(SharedOrchestrator.IssueCertificate), _retryOptions, dnsNames);
+
+                    // PFX を Container Apps Environment へアップロード
+                    var newCertificate = await activity.UploadCertificate((managedEnvironment.Id, dnsNames, pfxBlob, password));
 
                     // 証明書の更新が完了後に Webhook を送信する
                     await activity.SendCompletedEvent((managedEnvironment.Id, newCertificate.ExpireOn, dnsNames));

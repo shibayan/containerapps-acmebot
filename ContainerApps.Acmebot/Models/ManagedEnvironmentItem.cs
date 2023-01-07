@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿using System;
+
+using Newtonsoft.Json;
 
 namespace ContainerApps.Acmebot.Models;
 
@@ -12,4 +14,10 @@ public class ManagedEnvironmentItem
 
     [JsonProperty("resourceGroup")]
     public string ResourceGroup { get; set; }
+
+    [JsonProperty("dnsSuffix")]
+    public string DnsSuffix { get; set; }
+
+    [JsonProperty("expireOn")]
+    public DateTimeOffset ExpireOn { get; set; }
 }

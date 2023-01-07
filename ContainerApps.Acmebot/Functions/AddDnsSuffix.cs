@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 using Azure.WebJobs.Extensions.HttpApi;
 
@@ -17,41 +16,41 @@ using Microsoft.Extensions.Logging;
 
 namespace ContainerApps.Acmebot.Functions;
 
-public class AddCertificate : HttpFunctionBase
+public class AddDnsSuffix : HttpFunctionBase
 {
-    public AddCertificate(IHttpContextAccessor httpContextAccessor)
+    public AddDnsSuffix(IHttpContextAccessor httpContextAccessor)
         : base(httpContextAccessor)
     {
     }
 
-    [FunctionName($"{nameof(AddCertificate)}_{nameof(Orchestrator)}")]
+    [FunctionName($"{nameof(AddDnsSuffix)}_{nameof(Orchestrator)}")]
     public async Task Orchestrator([OrchestrationTrigger] IDurableOrchestrationContext context, ILogger log)
     {
-        var request = context.GetInput<AddCertificateRequest>();
+        var request = context.GetInput<AddDnsSuffixRequest>();
 
         var activity = context.CreateActivityProxy<ISharedActivity>();
 
-        var asciiDnsNames = request.DnsNames.Select(Punycode.Encode).ToArray();
+        var asciiDnsSuffix = Punycode.Encode(request.DnsSuffix);
+
+        // DNS サフィックス用のワイルドカード証明書を作成する
+        var asciiDnsNames = new[] { $"*.{asciiDnsSuffix}" };
 
         // ACME で証明書を発行する
         var (pfxBlob, password) = await context.CallSubOrchestratorAsync<(byte[], string)>(nameof(SharedOrchestrator.IssueCertificate), asciiDnsNames);
 
-        // PFX を Container Apps Environment へアップロード
-        var certificate = await activity.UploadCertificate((request.ManagedEnvironmentId, asciiDnsNames, pfxBlob, password));
+        // 検証用の DNS レコードを作成
+        await activity.CreateDnsSuffixVerification((request.ManagedEnvironmentId, asciiDnsSuffix));
 
-        // Container App と DNS にカスタムドメイン設定自体を追加する
-        if (request.BindToContainerApp)
-        {
-            await context.CallSubOrchestratorAsync(nameof(SharedOrchestrator.BindToContainerApp), (request.ContainerAppId, certificate.Id, asciiDnsNames));
-        }
+        // DNS サフィックスを更新する
+        var expireOn = await activity.BindDnsSuffix((request.ManagedEnvironmentId, asciiDnsSuffix, pfxBlob, password));
 
         // 証明書の更新が完了後に Webhook を送信する
-        await activity.SendCompletedEvent((request.ManagedEnvironmentId, certificate.ExpireOn, asciiDnsNames));
+        await activity.SendCompletedEvent((request.ManagedEnvironmentId, expireOn, asciiDnsNames));
     }
 
-    [FunctionName($"{nameof(AddCertificate)}_{nameof(HttpStart)}")]
+    [FunctionName($"{nameof(AddDnsSuffix)}_{nameof(HttpStart)}")]
     public async Task<IActionResult> HttpStart(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/certificate")] AddCertificateRequest request,
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/dns-suffix")] AddDnsSuffixRequest request,
         [DurableClient] IDurableClient starter,
         ILogger log)
     {
@@ -66,7 +65,7 @@ public class AddCertificate : HttpFunctionBase
         }
 
         // Function input comes from the request content.
-        var instanceId = await starter.StartNewAsync($"{nameof(AddCertificate)}_{nameof(Orchestrator)}", request);
+        var instanceId = await starter.StartNewAsync($"{nameof(AddDnsSuffix)}_{nameof(Orchestrator)}", request);
 
         log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 
