@@ -1,8 +1,6 @@
 ﻿using System.Threading;
 using System.Threading.Tasks;
 
-using ContainerApps.Acmebot.Models;
-
 using DurableTask.TypedProxy;
 
 using Microsoft.Azure.WebJobs;

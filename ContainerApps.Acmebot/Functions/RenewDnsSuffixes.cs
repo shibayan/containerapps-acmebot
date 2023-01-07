@@ -29,7 +29,7 @@ public class RenewDnsSuffixes
         {
             log.LogInformation($"Managed environment = {managedEnvironment.Id}");
 
-            log.LogInformation($"Renew certificate = {managedEnvironment.DnsSuffix},{managedEnvironment.ExpireOn}");
+            log.LogInformation($"Renew certificate = {managedEnvironment.DnsSuffix}, {managedEnvironment.ExpireOn}");
 
             // DNS サフィックス用のワイルドカード証明書を作成する
             var asciiDnsNames = new[] { $"*.{managedEnvironment.DnsSuffix}" };

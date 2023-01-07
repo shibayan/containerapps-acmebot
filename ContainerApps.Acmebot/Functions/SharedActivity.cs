@@ -85,10 +85,12 @@ public class SharedActivity : ISharedActivity
 
         await foreach (var managedEnvironment in subscription.GetContainerAppManagedEnvironmentsAsync())
         {
+#if false
             if (!managedEnvironment.Data.TagsFilter(IssuerName, _options.Endpoint))
             {
                 continue;
             }
+#endif
 
             if ((managedEnvironment.Data.CustomDomainConfiguration.ExpireOn.GetValueOrDefault(DateTimeOffset.MaxValue) - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
             {
@@ -664,6 +666,19 @@ public class SharedActivity : ISharedActivity
         managedEnvironment.Data.CustomDomainConfiguration.CertificatePassword = password;
 
         await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
+
+#if false
+        // Acmebot 管理対象になったことを Tag で判別するために追加
+        if (!managedEnvironment.Data.Tags.ContainsKey("Issuer"))
+        {
+            await managedEnvironment.AddTagAsync("Issuer", IssuerName);
+        }
+
+        if (!managedEnvironment.Data.Tags.ContainsKey("Endpoint"))
+        {
+            await managedEnvironment.AddTagAsync("Endpoint", _options.Endpoint);
+        }
+#endif
     }
 
     [FunctionName(nameof(SendCompletedEvent))]
