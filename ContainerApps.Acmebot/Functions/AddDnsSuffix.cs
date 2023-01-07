@@ -42,7 +42,10 @@ public class AddDnsSuffix : HttpFunctionBase
         await activity.CreateDnsSuffixVerification((request.ManagedEnvironmentId, asciiDnsSuffix));
 
         // DNS サフィックスを更新する
-        await activity.BindDnsSuffix((request.ManagedEnvironmentId, asciiDnsSuffix, pfxBlob, password));
+        var expireOn = await activity.BindDnsSuffix((request.ManagedEnvironmentId, asciiDnsSuffix, pfxBlob, password));
+
+        // 証明書の更新が完了後に Webhook を送信する
+        await activity.SendCompletedEvent((request.ManagedEnvironmentId, expireOn, asciiDnsNames));
     }
 
     [FunctionName($"{nameof(AddDnsSuffix)}_{nameof(HttpStart)}")]

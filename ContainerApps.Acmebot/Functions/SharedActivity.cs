@@ -654,7 +654,7 @@ public class SharedActivity : ISharedActivity
     }
 
     [FunctionName(nameof(BindDnsSuffix))]
-    public async Task BindDnsSuffix([ActivityTrigger] (string, string, byte[], string) input)
+    public async Task<DateTimeOffset> BindDnsSuffix([ActivityTrigger] (string, string, byte[], string) input)
     {
         var (id, dnsSuffix, pfxBlob, password) = input;
 
@@ -665,7 +665,7 @@ public class SharedActivity : ISharedActivity
         managedEnvironment.Data.CustomDomainConfiguration.CertificateValue = pfxBlob;
         managedEnvironment.Data.CustomDomainConfiguration.CertificatePassword = password;
 
-        await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
+        var operation = await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
 
 #if false
         // Acmebot 管理対象になったことを Tag で判別するために追加
@@ -679,6 +679,8 @@ public class SharedActivity : ISharedActivity
             await managedEnvironment.AddTagAsync("Endpoint", _options.Endpoint);
         }
 #endif
+
+        return operation.Value.Data.CustomDomainConfiguration.ExpireOn ?? DateTimeOffset.MaxValue;
     }
 
     [FunctionName(nameof(SendCompletedEvent))]

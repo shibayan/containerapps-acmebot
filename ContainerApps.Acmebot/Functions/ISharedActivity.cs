@@ -57,7 +57,7 @@ public interface ISharedActivity
 
     Task CreateDnsSuffixVerification((string, string) input);
 
-    Task BindDnsSuffix((string, string, byte[], string) input);
+    Task<DateTimeOffset> BindDnsSuffix((string, string, byte[], string) input);
 
     Task SendCompletedEvent((string, DateTimeOffset, IReadOnlyList<string>) input);
 }

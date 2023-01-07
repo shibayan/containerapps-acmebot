@@ -41,7 +41,10 @@ public class RenewDnsSuffixes
             await activity.CreateDnsSuffixVerification((managedEnvironment.Id, managedEnvironment.DnsSuffix));
 
             // DNS サフィックスを更新する
-            await activity.BindDnsSuffix((managedEnvironment.Id, managedEnvironment.DnsSuffix, pfxBlob, password));
+            var expireOn = await activity.BindDnsSuffix((managedEnvironment.Id, managedEnvironment.DnsSuffix, pfxBlob, password));
+
+            // 証明書の更新が完了後に Webhook を送信する
+            await activity.SendCompletedEvent((managedEnvironment.Id, expireOn, asciiDnsNames));
         }
     }
 
