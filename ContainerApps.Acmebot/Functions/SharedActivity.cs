@@ -85,12 +85,10 @@ public class SharedActivity : ISharedActivity
 
         await foreach (var managedEnvironment in subscription.GetContainerAppManagedEnvironmentsAsync())
         {
-#if false
             if (!managedEnvironment.Data.TagsFilter(IssuerName, _options.Endpoint))
             {
                 continue;
             }
-#endif
 
             if ((managedEnvironment.Data.CustomDomainConfiguration.ExpireOn.GetValueOrDefault(DateTimeOffset.MaxValue) - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
             {
@@ -558,10 +556,10 @@ public class SharedActivity : ISharedActivity
             recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { containerApp.Data.CustomDomainVerificationId } });
 
             // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
-            var varificationDnsName = $"asuid.{dnsName.Replace("*.", "")}";
+            var verificationDnsName = $"asuid.{dnsName.Replace("*.", "")}";
 
             // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
-            var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
+            var relativeDnsName = verificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
             var recordSets = dnsZone.GetDnsTxtRecords();
 
@@ -643,10 +641,10 @@ public class SharedActivity : ISharedActivity
         recordSet.DnsTxtRecords.Add(new DnsTxtRecordInfo { Values = { managedEnvironment.Data.CustomDomainConfiguration.CustomDomainVerificationId } });
 
         // 検証用に使う TXT レコード名を組み立てる、ワイルドカードの場合は 1 つずらす
-        var varificationDnsName = $"asuid.{dnsSuffix}";
+        var verificationDnsName = $"asuid.{dnsSuffix}";
 
         // Azure DNS は相対的なレコード名が必要なのでゾーン名を削除
-        var relativeDnsName = varificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
+        var relativeDnsName = verificationDnsName.Replace($".{dnsZone.Data.Name}", "", StringComparison.OrdinalIgnoreCase);
 
         var recordSets = dnsZone.GetDnsTxtRecords();
 
@@ -667,7 +665,6 @@ public class SharedActivity : ISharedActivity
 
         var operation = await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
 
-#if false
         // Acmebot 管理対象になったことを Tag で判別するために追加
         if (!managedEnvironment.Data.Tags.ContainsKey("Issuer"))
         {
@@ -678,7 +675,6 @@ public class SharedActivity : ISharedActivity
         {
             await managedEnvironment.AddTagAsync("Endpoint", _options.Endpoint);
         }
-#endif
 
         return operation.Value.Data.CustomDomainConfiguration.ExpireOn ?? DateTimeOffset.MaxValue;
     }
