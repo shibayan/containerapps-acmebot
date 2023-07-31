@@ -4,18 +4,17 @@
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": true,
-        "excludedTypes": "Request"
+        "excludedTypes": "Request;Exception"
       }
     },
     "logLevel": {
-      "ContainerApps.Acmebot": "Information"
+      "ContainerApps.Acmebot": "Warning"
     }
   },
   "extensions": {
     "durableTask": {
-      "hubName": "DurableFunctionsHub",
-      "extendedSessionsEnabled": true,
-      "extendedSessionIdleTimeoutInSeconds": 120
+      "useGracefulShutdown": true,
+      "useTablePartitionManagement": true
     },
     "http": {
       "routePrefix": "",
