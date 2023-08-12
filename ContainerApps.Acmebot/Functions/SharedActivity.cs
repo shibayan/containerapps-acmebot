@@ -85,12 +85,10 @@ public class SharedActivity : ISharedActivity
 
         await foreach (var managedEnvironment in subscription.GetContainerAppManagedEnvironmentsAsync())
         {
-#if false
             if (!managedEnvironment.Data.TagsFilter(IssuerName, _options.Endpoint))
             {
                 continue;
             }
-#endif
 
             if ((managedEnvironment.Data.CustomDomainConfiguration.ExpireOn.GetValueOrDefault(DateTimeOffset.MaxValue) - currentDateTime).TotalDays > _options.RenewBeforeExpiry)
             {
@@ -505,30 +503,28 @@ public class SharedActivity : ISharedActivity
 
         var containerAppCertificates = managedEnvironment.GetContainerAppManagedEnvironmentCertificates();
 
-        // 作成時にリソースタグが追加できないので先に証明書リソースを作成する
+        // 証明書リソースを作成する
         var containerAppCertificate = await containerAppCertificates.CreateOrUpdateAsync(WaitUntil.Completed, certificateName, new ContainerAppCertificateData(managedEnvironment.Data.Location)
         {
             Properties = new ContainerAppCertificateProperties
             {
                 Password = password,
                 Value = pfxBlob
+            },
+            Tags =
+            {
+                { "Issuer", IssuerName },
+                { "Endpoint", _options.Endpoint },
+                { "DnsNames", string.Join(",", dnsNames) }
             }
-        });
-
-        // 証明書リソースの作成後にタグのみ追加する
-        ContainerAppManagedEnvironmentCertificateResource containerAppCertificateWithTags = await containerAppCertificate.Value.SetTagsAsync(new Dictionary<string, string>
-        {
-            { "Issuer", IssuerName },
-            { "Endpoint", _options.Endpoint },
-            { "DnsNames", string.Join(",", dnsNames) }
         });
 
         return new ContainerAppCertificateItem
         {
-            Id = containerAppCertificateWithTags.Id,
-            Name = containerAppCertificateWithTags.Data.Name,
-            ExpireOn = containerAppCertificateWithTags.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
-            Tags = containerAppCertificateWithTags.Data.Tags
+            Id = containerAppCertificate.Id,
+            Name = containerAppCertificate.Value.Data.Name,
+            ExpireOn = containerAppCertificate.Value.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
+            Tags = containerAppCertificate.Value.Data.Tags
         };
     }
 
@@ -665,20 +661,11 @@ public class SharedActivity : ISharedActivity
         managedEnvironment.Data.CustomDomainConfiguration.CertificateValue = pfxBlob;
         managedEnvironment.Data.CustomDomainConfiguration.CertificatePassword = password;
 
-        var operation = await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
-
-#if false
         // Acmebot 管理対象になったことを Tag で判別するために追加
-        if (!managedEnvironment.Data.Tags.ContainsKey("Issuer"))
-        {
-            await managedEnvironment.AddTagAsync("Issuer", IssuerName);
-        }
+        managedEnvironment.Data.Tags["Issuer"] = IssuerName;
+        managedEnvironment.Data.Tags["Endpoint"] = _options.Endpoint;
 
-        if (!managedEnvironment.Data.Tags.ContainsKey("Endpoint"))
-        {
-            await managedEnvironment.AddTagAsync("Endpoint", _options.Endpoint);
-        }
-#endif
+        var operation = await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
 
         return operation.Value.Data.CustomDomainConfiguration.ExpireOn ?? DateTimeOffset.MaxValue;
     }
