@@ -33,7 +33,7 @@ jobs:
     - name: Zip Function app
       run: 7z a -mx=9 latest.zip ./dist/*
 
-    - name: Upload artifact
+    - name: Upload artifacts
       uses: actions/upload-artifact@v3
       with:
         name: dist
@@ -61,7 +61,7 @@ jobs:
         az config set bicep.use_binary_from_path=false
         az bicep install --version v${{ env.BICEP_VERSION }}
 
-    - name: Download artifact
+    - name: Download artifacts
       uses: actions/download-artifact@v3
       with:
         name: dist
@@ -73,5 +73,5 @@ jobs:
 
     - name: Publish to Private Registry
       run: |
-        az bicep publish --file azuredeploy.bicep --target br:cracmebotprod.azurecr.io/bicep/modules/containerapps-acmebot:v1
-        az bicep publish --file azuredeploy.bicep --target br:cracmebotprod.azurecr.io/bicep/modules/containerapps-acmebot:v${{ needs.publish.outputs.version }}
+        az bicep publish --file azuredeploy.bicep --target br:cracmebotprod.azurecr.io/bicep/modules/containerapps-acmebot:v1 --force
+        az bicep publish --file azuredeploy.bicep --target br:cracmebotprod.azurecr.io/bicep/modules/containerapps-acmebot:v${{ needs.publish.outputs.version }} --force
