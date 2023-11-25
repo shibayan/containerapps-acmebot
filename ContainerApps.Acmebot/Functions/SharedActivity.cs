@@ -504,7 +504,7 @@ public class SharedActivity : ISharedActivity
         var containerAppCertificates = managedEnvironment.GetContainerAppManagedEnvironmentCertificates();
 
         // 証明書リソースを作成する
-        var containerAppCertificate = await containerAppCertificates.CreateOrUpdateAsync(WaitUntil.Completed, certificateName, new ContainerAppCertificateData(managedEnvironment.Data.Location)
+        var operation = await containerAppCertificates.CreateOrUpdateAsync(WaitUntil.Completed, certificateName, new ContainerAppCertificateData(managedEnvironment.Data.Location)
         {
             Properties = new ContainerAppCertificateProperties
             {
@@ -519,12 +519,14 @@ public class SharedActivity : ISharedActivity
             }
         });
 
+        var containerAppCertificate = operation.Value;
+
         return new ContainerAppCertificateItem
         {
             Id = containerAppCertificate.Id,
-            Name = containerAppCertificate.Value.Data.Name,
-            ExpireOn = containerAppCertificate.Value.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
-            Tags = containerAppCertificate.Value.Data.Tags
+            Name = containerAppCertificate.Data.Name,
+            ExpireOn = containerAppCertificate.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
+            Tags = containerAppCertificate.Data.Tags
         };
     }
 
