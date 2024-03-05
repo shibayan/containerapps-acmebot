@@ -1,10 +1,12 @@
-﻿using Azure.ResourceManager.AppContainers;
+﻿using System;
+
+using Azure.ResourceManager.AppContainers;
 
 namespace ContainerApps.Acmebot.Internal;
 
 internal static class CertificateExtensions
 {
-    public static bool TagsFilter(this ContainerAppCertificateData containerAppCertificate, string issuer, string endpoint)
+    public static bool TagsFilter(this ContainerAppCertificateData containerAppCertificate, string issuer, Uri endpoint)
     {
         var tags = containerAppCertificate.Tags;
 
@@ -18,7 +20,7 @@ internal static class CertificateExtensions
             return false;
         }
 
-        if (!tags.TryGetValue("Endpoint", out var tagEndpoint) || tagEndpoint != endpoint)
+        if (!tags.TryGetValue("Endpoint", out var tagEndpoint) || NormalizeEndpoint(tagEndpoint) != endpoint.Host)
         {
             return false;
         }
@@ -31,7 +33,7 @@ internal static class CertificateExtensions
         return true;
     }
 
-    public static bool TagsFilter(this ContainerAppManagedEnvironmentData managedEnvironmentData, string issuer, string endpoint)
+    public static bool TagsFilter(this ContainerAppManagedEnvironmentData managedEnvironmentData, string issuer, Uri endpoint)
     {
         var tags = managedEnvironmentData.Tags;
 
@@ -45,11 +47,13 @@ internal static class CertificateExtensions
             return false;
         }
 
-        if (!tags.TryGetValue("Endpoint", out var tagEndpoint) || tagEndpoint != endpoint)
+        if (!tags.TryGetValue("Endpoint", out var tagEndpoint) || NormalizeEndpoint(tagEndpoint) != endpoint.Host)
         {
             return false;
         }
 
         return true;
     }
+
+    private static string NormalizeEndpoint(string endpoint) => Uri.TryCreate(endpoint, UriKind.Absolute, out var legacyEndpoint) ? legacyEndpoint.Host : endpoint;
 }
