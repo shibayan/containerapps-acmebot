@@ -514,7 +514,7 @@ public class SharedActivity : ISharedActivity
             Tags =
             {
                 { "Issuer", IssuerName },
-                { "Endpoint", _options.Endpoint },
+                { "Endpoint", _options.Endpoint.Host },
                 { "DnsNames", string.Join(",", dnsNames) }
             }
         });
@@ -665,7 +665,7 @@ public class SharedActivity : ISharedActivity
 
         // Acmebot 管理対象になったことを Tag で判別するために追加
         managedEnvironment.Data.Tags["Issuer"] = IssuerName;
-        managedEnvironment.Data.Tags["Endpoint"] = _options.Endpoint;
+        managedEnvironment.Data.Tags["Endpoint"] = _options.Endpoint.Host;
 
         var operation = await managedEnvironment.UpdateAsync(WaitUntil.Completed, managedEnvironment.Data);
 
