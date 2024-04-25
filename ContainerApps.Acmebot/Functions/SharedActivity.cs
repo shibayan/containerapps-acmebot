@@ -510,23 +510,25 @@ public class SharedActivity : ISharedActivity
             {
                 Password = password,
                 Value = pfxBlob
-            },
-            Tags =
-            {
-                { "Issuer", IssuerName },
-                { "Endpoint", _options.Endpoint.Host },
-                { "DnsNames", string.Join(",", dnsNames) }
             }
         });
 
         var containerAppCertificate = operation.Value;
 
+        // 証明書リソースの作成後にタグのみ追加する
+        ContainerAppManagedEnvironmentCertificateResource containerAppCertificateWithTags = await containerAppCertificate.SetTagsAsync(new Dictionary<string, string>
+        {
+            { "Issuer", IssuerName },
+            { "Endpoint", _options.Endpoint.Host },
+            { "DnsNames", string.Join(",", dnsNames) }
+        });
+
         return new ContainerAppCertificateItem
         {
-            Id = containerAppCertificate.Id,
-            Name = containerAppCertificate.Data.Name,
-            ExpireOn = containerAppCertificate.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
-            Tags = containerAppCertificate.Data.Tags
+            Id = containerAppCertificateWithTags.Id,
+            Name = containerAppCertificateWithTags.Data.Name,
+            ExpireOn = containerAppCertificateWithTags.Data.Properties.ExpireOn ?? DateTimeOffset.MaxValue,
+            Tags = containerAppCertificateWithTags.Data.Tags
         };
     }
 
