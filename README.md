@@ -17,6 +17,11 @@
   <a href="https://github.com/shibayan/containerapps-acmebot/discussions" rel="nofollow"><img src="https://badgen.net/badge/discussions/welcome/ff7733" alt="Discussions" style="max-width: 100%;"></a>
 </p>
 
+> [!IMPORTANT]
+> This project has been retired as Azure Container Apps now supports Key Vault certificates. Please use Key Vault Acmebot from now on.
+> 
+> https://github.com/shibayan/keyvault-acmebot
+
 ## Motivation
 
 We have started to address the following requirements:
